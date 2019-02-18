@@ -1,0 +1,6 @@
+*.idea/*
+*.pyc
+data/*
+results/*
+*ckpt*
+
