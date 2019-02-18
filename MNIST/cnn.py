@@ -239,5 +239,4 @@ if __name__ == "__main__":
         os.makedirs(args.save)
     # pretty print args
     print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
-    corr = float(args.corr / 10.0)
     main(args)
