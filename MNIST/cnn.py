@@ -55,8 +55,6 @@ class MNISTcnn(object):
         # conv1
         with tf.variable_scope('conv1'):
             W_conv1 = weight_variable([5, 5, 1, 32])
-            if conf.re == 1:
-                tf.add_to_collection('losses', tf.contrib.layers.l2_regularizer(0.001)(W_conv1))
             b_conv1 = bias_variable([32])
             h_conv1 = tf.nn.relu(conv2d(self.x, W_conv1) + b_conv1)
             h_pool1 = max_pool_2x2(h_conv1)
@@ -227,14 +225,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
     parser.add_argument('-e', '--epochs', type=int, default=1000, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
-    parser.add_argument('-re', '--re', type=int, default=0, help='regularization?')
-    parser.add_argument('-corr', '--corr', type=int, default=8, help='correlation')
-    parser.add_argument('-hex', '--hex', type=int, default=1, help='use hex?')
     parser.add_argument('-save', '--save', type=str, default='hex2/', help='save acc npy path?')
-    parser.add_argument('-row', '--row', type=int, default=0, help='direction delta in row')
-    parser.add_argument('-col', '--col', type=int, default=0, help='direction delta in column')
-    parser.add_argument('-ng', '--ngray', type=int, default=16, help='regularization gray level')
-    parser.add_argument('-div', '--div', type=int, default=200, help='how many epochs before HEX start')
     # print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':')))
 
     args = parser.parse_args()
