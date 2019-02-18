@@ -51,8 +51,6 @@ class MNISTcnn(object):
         self.x = tf.reshape(x, shape=[-1, 28, 28, 1])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
-        self.e = tf.placeholder(tf.float32)
-        self.batch = tf.placeholder(tf.float32)
 
         # conv1
         with tf.variable_scope('conv1'):
@@ -90,8 +88,10 @@ class MNISTcnn(object):
 
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_conv_loss))
         self.pred = tf.argmax(h_fc1_drop, 1)
-
         self.accuracy = tf.reduce_mean(tf.cast(self.pred, tf.float32))
+
+        if conf.adv_flag:
+            pass
 
 
 def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
