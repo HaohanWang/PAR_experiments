@@ -91,6 +91,7 @@ class MNISTcnn(object):
 
         self.correct_prediction = tf.equal(tf.argmax(y_conv_loss, 1), tf.argmax(self.y, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
+        self.adv_acc = tf.cast(0, tf.float32)
 
         if conf.adv_flag:
             # todo: considering making it more compact
@@ -121,7 +122,7 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
     model = MNISTcnn(x, y, args)
 
     # optimizer = tf.train.AdamOptimizer(1e-4).minimize(model.loss)
-    optimizer = tf.train.AdamOptimizer(1e-3)
+    optimizer = tf.train.AdamOptimizer(1e-4)
     first_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "cnn")
     first_train_op = optimizer.minimize(model.loss, var_list=first_train_vars)
 
