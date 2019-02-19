@@ -29,3 +29,13 @@ def loadDataCifar10():
     Ytest = np.load('../data/cifar10/testLabel.npy').astype(int)
 
     return Xtrain, oneHotRepresentation(Ytrain), Xval, oneHotRepresentation(Yval), Xtest, oneHotRepresentation(Ytest)
+
+def loadDataFashionMNIST():
+    Xtrain = np.load('../data/fashionMNIST/trainData.npy')
+    Ytrain = np.load('../data/fashionMNIST/trainLabel.npy').astype(int)
+    Xval = np.load('../data/fashionMNIST/valData.npy')
+    Yval = np.load('../data/fashionMNIST/valLabel.npy').astype(int)
+    Xtest = np.load('../data/fashionMNIST/teData.npy')
+    Ytest = np.load('../data/fashionMNIST/teLabel.npy').astype(int)
+
+    return Xtrain, oneHotRepresentation(Ytrain), Xval, oneHotRepresentation(Yval), Xtest, oneHotRepresentation(Ytest)
