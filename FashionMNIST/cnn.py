@@ -76,7 +76,7 @@ class MNISTcnn(object):
                 h_pool2_flat = tf.reshape(h_pool2, [-1, shape])
                 h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
-            h_fc1 = tf.nn.l2_normalize(h_fc1, 0)
+            # h_fc1 = tf.nn.l2_normalize(h_fc1, 0)
             # dropout
             h_fc1_drop = tf.nn.dropout(h_fc1, self.keep_prob)
 
@@ -93,9 +93,10 @@ class MNISTcnn(object):
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
         if conf.adv_flag:
+            # todo: considering making it more compact
             self.adv_loss = 0
             self.adv_acc = 0
-            [_, m, n, k] = h_pool1.shape
+            [_, m, n, k] = h_pool2.shape
             d = tf.cast(m*n, tf.float32)
             with tf.variable_scope('adv'):
                 for i in range(m):
@@ -103,7 +104,7 @@ class MNISTcnn(object):
                         with tf.variable_scope("fc_a_%d_%d" % (i, j)):
                             W_a = weight_variable([k, self.class_num])
                             b_a = bias_variable([self.class_num])
-                            y_adv_loss = tf.matmul(h_pool1[:, i, j, :], W_a) + b_a
+                            y_adv_loss = tf.matmul(h_pool2[:, i, j, :], W_a) + b_a
                             self.adv_loss += tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_adv_loss)) / d
                             self.adv_acc += tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, 1), tf.argmax(self.y, 1)), tf.float32)) /d
 
@@ -120,7 +121,7 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
     model = MNISTcnn(x, y, args)
 
     # optimizer = tf.train.AdamOptimizer(1e-4).minimize(model.loss)
-    optimizer = tf.train.AdamOptimizer(1e-4)
+    optimizer = tf.train.AdamOptimizer(1e-3)
     first_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "cnn")
     first_train_op = optimizer.minimize(model.loss, var_list=first_train_vars)
 
@@ -168,10 +169,10 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
                 batch_x = Xtrain[i * args.batch_size:(i + 1) * args.batch_size, :]
                 batch_y = Ytrain[i * args.batch_size:(i + 1) * args.batch_size, :]
 
-                _, acc, loss = sess.run([first_train_op, model.accuracy, model.loss],
+                _, acc, adv_acc, loss = sess.run([first_train_op, model.accuracy, model.adv_acc, model.loss],
                                         feed_dict={x: batch_x, y: batch_y, model.keep_prob: 0.5})
                 if args.adv_flag:
-                    _, adv_acc, adv_loss = sess.run([second_train_op, model.adv_acc, model.adv_loss],
+                    _, __, adv_loss = sess.run([second_train_op, model.adv_acc, model.adv_loss],
                                         feed_dict={x: batch_x, y: batch_y, model.keep_prob: 0.5})
                 train_accuracies.append(acc)
                 train_losses.append(loss)
