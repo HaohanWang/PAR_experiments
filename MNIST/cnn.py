@@ -51,6 +51,7 @@ class MNISTcnn(object):
         self.x = tf.reshape(x, shape=[-1, 28, 28, 1])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
+        self.class_num = 10
 
         # conv1
         with tf.variable_scope('conv1'):
@@ -80,8 +81,8 @@ class MNISTcnn(object):
 
         # fc2
         with tf.variable_scope("fc2"):
-            W_fc2 = weight_variable([1024, 7])
-            b_fc2 = bias_variable([7])
+            W_fc2 = weight_variable([1024, self.class_num])
+            b_fc2 = bias_variable([self.class_num])
             y_conv_loss = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
 
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_conv_loss))
@@ -89,7 +90,9 @@ class MNISTcnn(object):
         self.accuracy = tf.reduce_mean(tf.cast(self.pred, tf.float32))
 
         if conf.adv_flag:
-            pass
+
+
+            self.loss += conf.lam
 
 
 def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
@@ -226,6 +229,9 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--epochs', type=int, default=1000, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
     parser.add_argument('-save', '--save', type=str, default='hex2/', help='save acc npy path?')
+    parser.add_argument('-adv', '--adv_flag', type=int, default=1, help='adversarially training local features')
+    parser.add_argument('-m', '--lam', type=float, default=1.0, help='adversarially training local features')
+
     # print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':')))
 
     args = parser.parse_args()
