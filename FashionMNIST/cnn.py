@@ -94,6 +94,7 @@ class MNISTcnn(object):
 
         if conf.adv_flag:
             self.adv_loss = 0
+            self.adv_acc = 0
             [_, m, n, k] = h_pool1.shape
             d = tf.cast(m*n, tf.float32)
             with tf.variable_scope('adv'):
@@ -104,6 +105,7 @@ class MNISTcnn(object):
                             b_a = bias_variable([self.class_num])
                             y_adv_loss = tf.matmul(h_pool1[:, i, j, :], W_a) + b_a
                             self.adv_loss += tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_adv_loss)) / d
+                            self.adv_acc += tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, 1), tf.argmax(self.y, 1)), tf.float32)) /d
 
             self.loss -= conf.lam * self.adv_loss
 
@@ -159,7 +161,9 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
             train_accuracies = []
             train_losses = []
             adv_losses = []
+            adv_acces = []
             adv_loss = 0
+            adv_acc = 0
             for i in range(num_batches):
                 batch_x = Xtrain[i * args.batch_size:(i + 1) * args.batch_size, :]
                 batch_y = Ytrain[i * args.batch_size:(i + 1) * args.batch_size, :]
@@ -167,16 +171,18 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
                 _, acc, loss = sess.run([first_train_op, model.accuracy, model.loss],
                                         feed_dict={x: batch_x, y: batch_y, model.keep_prob: 0.5})
                 if args.adv_flag:
-                    _, adv_loss = sess.run([second_train_op, model.adv_loss],
+                    _, adv_acc, adv_loss = sess.run([second_train_op, model.adv_acc, model.adv_loss],
                                         feed_dict={x: batch_x, y: batch_y, model.keep_prob: 0.5})
                 train_accuracies.append(acc)
                 train_losses.append(loss)
                 adv_losses.append(adv_loss)
+                adv_acces.append(adv_acc)
             train_acc_mean = np.mean(train_accuracies)
             train_acc.append(train_acc_mean)
 
             train_loss_mean = np.mean(train_losses)
             adv_loss_mean = np.mean(adv_losses)
+            adv_acc_mean = np.mean(adv_acces)
 
             # print ()
             # compute loss over validation data
@@ -190,8 +196,8 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
                 val_acc_mean = np.mean(val_accuracies)
                 val_acc.append(val_acc_mean)
                 # log progress to console
-                print("Epoch %d, time = %ds, train accuracy = %.4f, loss = %.4f, adv loss = %.4f,  validation accuracy = %.4f" % (
-                    epoch, time.time() - begin, train_acc_mean, train_loss_mean, adv_loss_mean, val_acc_mean))
+                print("Epoch %d, time = %ds, train accuracy = %.4f, loss = %.4f, adv loss = %.4f, adv accuracy = %.4f,  validation accuracy = %.4f" % (
+                    epoch, time.time() - begin, train_acc_mean, train_loss_mean, adv_loss_mean, adv_acc_mean, val_acc_mean))
 
                 if val_acc_mean > best_validate_accuracy:
                     best_validate_accuracy = val_acc_mean
