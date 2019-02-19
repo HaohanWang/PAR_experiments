@@ -3,4 +3,4 @@
 data/*
 results/*
 *ckpt*
-
+*.npy
