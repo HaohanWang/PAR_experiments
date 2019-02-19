@@ -263,7 +263,7 @@ class ResNet(object):
     def load_initial_weights(self, session):
         for v in tf.trainable_variables():
             saveName = v.name.replace('/', '_')
-            print (saveName)
+            # print (saveName)
             if saveName.startswith('cnn'):
                 data = np.load('./tmp/' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
