@@ -244,7 +244,7 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
-    parser.add_argument('-m', '--lam', type=float, default=1.0, help='adversarially training local features')
+    parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
 
     # print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':')))
 

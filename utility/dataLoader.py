@@ -18,3 +18,14 @@ def loadDataMNIST():
     training_data, validation_data, test_data = cPickle.load(f)
     return training_data[0], oneHotRepresentation(training_data[1]), validation_data[
         0], oneHotRepresentation(validation_data[1]), test_data[0], oneHotRepresentation(test_data[1])
+
+
+def loadDataCifar10():
+    Xtrain = np.load('../data/cifar10/trainData.npy')
+    Ytrain = np.load('../data/cifar10/trainLabel.npy').astype(int)
+    Xval = np.load('../data/cifar10/valData.npy')
+    Yval = np.load('../data/cifar10/valLabel.npy').astype(int)
+    Xtest = np.load('../data/cifar10/testData.npy')
+    Ytest = np.load('../data/cifar10/testLabel.npy').astype(int)
+
+    return Xtrain, oneHotRepresentation(Ytrain), Xval, oneHotRepresentation(Yval), Xtest, oneHotRepresentation(Ytest)
