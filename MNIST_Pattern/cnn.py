@@ -1,7 +1,4 @@
-# -*- encoding=utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+
 
 import os
 import sys
@@ -15,44 +12,33 @@ import numpy as np
 sys.path.append('../')
 
 import tensorflow as tf
-from utility.dataLoader import loadDataMNIST
 
-
-def lamda_variable(shape):
-    initializer = tf.random_uniform_initializer(dtype=tf.float32, minval=0, maxval=16)
-    return tf.get_variable("lamda", shape, initializer=initializer, dtype=tf.float32)
-
-
-def theta_variable(shape):
-    initializer = tf.random_uniform_initializer(dtype=tf.float32, minval=0, maxval=16)
-    return tf.get_variable("theta", shape, initializer=initializer, dtype=tf.float32)
-
+from DFT import change_mnist_radial, loadMultiDomainMNISTData
 
 def weight_variable(shape):
     initializer = tf.truncated_normal_initializer(dtype=tf.float32, stddev=1e-1)
-    return tf.get_variable("weights", shape, initializer=initializer, dtype=tf.float32)
-
+    return tf.get_variable("weights", shape,initializer=initializer, dtype=tf.float32)
 
 def bias_variable(shape):
     initializer = tf.constant_initializer(0.0)
     return tf.get_variable("biases", shape, initializer=initializer, dtype=tf.float32)
 
-
 def conv2d(x, W):
     return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
-
 def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-
 
 class MNISTcnn(object):
     def __init__(self, x, y, conf):
         self.x = tf.reshape(x, shape=[-1, 28, 28, 1])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
+        self.e=tf.placeholder(tf.float32)
+        self.batch=tf.placeholder(tf.float32)
         self.class_num = 10
 
+        ######################################Sentiment######################
         # conv1
         with tf.variable_scope('cnn'):
             with tf.variable_scope('conv1'):
@@ -76,20 +62,21 @@ class MNISTcnn(object):
                 h_pool2_flat = tf.reshape(h_pool2, [-1, shape])
                 h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
 
-            h_fc1 = tf.nn.l2_normalize(h_fc1, 0)
             # dropout
+            h_fc1 = tf.nn.l2_normalize(h_fc1, 0)
             h_fc1_drop = tf.nn.dropout(h_fc1, self.keep_prob)
 
             # fc2
             with tf.variable_scope("fc2"):
-                W_fc2 = weight_variable([1024, self.class_num])
-                b_fc2 = bias_variable([self.class_num])
+                W_fc2 = weight_variable([1024, 10])
+                b_fc2 = bias_variable([10])
                 y_conv_loss = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
+            ######################################Sentiment######################
 
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_conv_loss))
         self.pred = tf.argmax(y_conv_loss, 1)
 
-        self.correct_prediction = tf.equal(tf.argmax(y_conv_loss, 1), tf.argmax(self.y, 1))
+        self.correct_prediction = tf.equal(tf.argmax(y_conv_loss,1), tf.argmax(self.y,1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
         if conf.adv_flag:
@@ -104,7 +91,6 @@ class MNISTcnn(object):
             self.adv_acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, -1), tf.argmax(my, -1)), tf.float32))
 
             self.loss -= conf.lam * self.adv_loss
-
 
 def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
     # """ reuse """
@@ -223,9 +209,7 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
 
 
 def main(args):
-    Xtrain, Ytrain, Xval, Yval, Xtest, Ytest = loadDataMNIST()
-
-    # data = input_data.read_data_sets(args.data_dir, one_hot=True, reshape=False, validation_size=args.val_size)
+    Xtrain, Ytrain, Xval, Yval, Xtest, Ytest = loadMultiDomainMNISTData(testCase=args.test)
 
     print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
 
@@ -243,6 +227,7 @@ if __name__ == "__main__":
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
+    parser.add_argument('-test', '--test', type=int, default=0, help='which one to test?')
 
     # print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':')))
 
