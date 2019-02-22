@@ -80,11 +80,11 @@ class MNISTcnn(object):
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
         if conf.adv_flag:
-            [_, m, n, d] = h_pool2.shape
+            [_, m, n, d] = h_pool1.shape
             with tf.variable_scope('adv'):
                 W_a = weight_variable([1, 1, d, self.class_num])
                 b_a = bias_variable([self.class_num])
-            y_adv_loss = conv2d(h_pool2, W_a) + b_a
+            y_adv_loss = conv2d(h_pool1, W_a) + b_a
             ty = tf.reshape(self.y, [-1, 1, 1, self.class_num])
             my = tf.tile(ty, [1, m, n, 1])
             self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
