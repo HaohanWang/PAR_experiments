@@ -13,7 +13,7 @@ sys.path.append('../')
 
 import tensorflow as tf
 
-from DFT import change_mnist_radial, loadMultiDomainMNISTData
+from DFT import loadMultiDomainMNISTData
 
 def weight_variable(shape):
     initializer = tf.truncated_normal_initializer(dtype=tf.float32, stddev=1e-1)
