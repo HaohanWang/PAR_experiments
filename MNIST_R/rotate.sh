@@ -1,0 +1,1 @@
+python cnn.py -adv 1 -m 0.01 -test 3 -g 0 -e 500 > results/ALF_3_0.01_1.txt
