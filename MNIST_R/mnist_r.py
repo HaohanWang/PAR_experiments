@@ -21,7 +21,7 @@ img_rows, img_cols = 28, 28
 
 # the data, split between train and test sets
 #(x_train, y_train), (x_test, y_test) = mnist.load_data()
-import cPickle as pickle
+import _pickle as pickle
 import gzip
 # f = gzip.open('../../../data/mnist.pkl.gz', 'rb')
 # #f=gzip.open('/media/student/Data/zexue/MNIST/mnist.pkl.gz','rb')
@@ -147,8 +147,8 @@ def loadDataRotate(test=0):
         trainAng = [0, 15, 30, 45, 60]
         testAng = 75
 
-    f = gzip.open('../data/MNIST/mnist.pkl.gz', 'rb')
-    training_data, validation_data, test_data = pickle.load(f)
+    f = gzip.open('../../original_data/MNIST/mnist.pkl.gz', 'rb')
+    training_data, validation_data, test_data = pickle.load(f, encoding='iso-8859-1')
 
     # x_train=training_data[0]
     # y_train=training_data[1]

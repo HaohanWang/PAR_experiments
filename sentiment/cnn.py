@@ -11,7 +11,7 @@ sys.path.append('../')
 
 import tensorflow as tf
 
-from mnist_r import loadDataRotate
+from sentimentLoader import loadDataSentiment
 
 def weight_variable(shape):
     initializer = tf.truncated_normal_initializer(dtype=tf.float32, stddev=1e-1)
@@ -34,7 +34,7 @@ class MNISTcnn(object):
         self.keep_prob = tf.placeholder(tf.float32)
         self.e=tf.placeholder(tf.float32)
         self.batch=tf.placeholder(tf.float32)
-        self.class_num = 10
+        self.class_num = 7
 
         ######################################Sentiment######################
         # conv1
@@ -66,8 +66,8 @@ class MNISTcnn(object):
 
             # fc2
             with tf.variable_scope("fc2"):
-                W_fc2 = weight_variable([1024, 10])
-                b_fc2 = bias_variable([10])
+                W_fc2 = weight_variable([1024, self.class_num])
+                b_fc2 = bias_variable([self.class_num])
                 y_conv_loss = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
             ######################################Sentiment######################
 
@@ -93,7 +93,7 @@ class MNISTcnn(object):
 def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
     # """ reuse """
     # with tf.variable_scope('model',reuse=tf.AUTO_REUSE ) as scope:
-    num_class = 10
+    num_class = 7
 
     x = tf.placeholder(tf.float32, (None, 28 * 28))
     y = tf.placeholder(tf.float32, (None, num_class))
@@ -207,7 +207,7 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
 
 
 def main(args):
-    Xtrain, Ytrain, Xval, Yval, Xtest, Ytest = loadDataRotate(args.test)
+    Xtrain, Ytrain, Xval, Yval, Xtest, Ytest = loadDataSentiment(args.test/10)
 
     print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
-    parser.add_argument('-test', '--test', type=int, default=0, help='which one to test?')
+    parser.add_argument('-test', '--test', type=float, default=0, help='which one to test?')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
 
     # print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':')))
