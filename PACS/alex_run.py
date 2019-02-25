@@ -14,7 +14,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2 
 from datagenerator import ImageDataGenerator
-from tensorflow.contrib.data import Iterator
+from tensorflow.data import Iterator
 
 sys.path.append('../')
 
@@ -23,7 +23,7 @@ sys.path.append('../')
 
 import tensorflow as tf
 
-from alex_cnn_baseline import MNISTcnn
+from alex_cnn import MNISTcnn
 
 
 def set_path(choice):
@@ -51,11 +51,12 @@ def set_path(choice):
 
     
   
-def train(args, use_hex=True):
+def train(args):
         num_classes = 7
-        dataroot = '../data/PACS/'
+        dataroot = '../../original_data/PACS/'
 
-        cat = 'photo'
+        cats = ['sketch', 'cartoon', 'photo', 'art']
+        cat = cats[args.test]
 
         batch_size=args.batch_size
 
@@ -94,19 +95,21 @@ def train(args, use_hex=True):
 
         x = tf.placeholder(tf.float32,(None,227,227,3))
         y = tf.placeholder(tf.float32, (None, num_classes))
-        model = MNISTcnn(x, y, args, Hex_flag=use_hex)
+        model = MNISTcnn(x, y, args)
         
         # optimizer = tf.train.AdamOptimizer(1e-4).minimize(model.loss)
         optimizer = tf.train.AdamOptimizer(1e-4) # default was 0.0005
-        first_train_op = optimizer.minimize(model.loss)
-        
+        first_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "cnn")
+        first_train_op = optimizer.minimize(model.loss, var_list=first_train_vars)
+        if args.adv_flag:
+            second_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "adv")
+            second_train_op = optimizer.minimize(model.adv_loss, var_list=second_train_vars)
+
         saver = tf.train.Saver(tf.trainable_variables())
 
         with tf.Session() as sess:
-            
             print('Starting training')
             print('load Alex net weights')            
-
             sess.run(tf.initialize_all_variables())
             model.load_initial_weights(sess)
             if args.load_params:
@@ -124,80 +127,44 @@ def train(args, use_hex=True):
             test_acc=[]
             val_acc=[]
 
-            val_rep = None
-            val_re = None
-            val_d = None
-            val_y = None
-
             for epoch in range(args.epochs): 
                     
                 begin = time.time()
                 sess.run(training_init_op)
-                #sess.run(validation_init_op)
-                #sess.run(test_init_op)
-                # train
-                ######
             
                 train_accuracies = []
                 train_losses = []
-                train_rep = None
-                train_re = None
-                train_d = None
-                train_y = None
+                adv_losses = []
+                
                 for i in range(train_batches_per_epoch):
                     batch_x, img_batch, batch_y = sess.run(next_batch) 
-                    batch_xd,batch_re=preparion(img_batch,args)
                    
-                    _, acc, loss, rep = sess.run([first_train_op, model.accuracy, model.loss, model.rep], feed_dict={x: batch_x,
-                                                    x_re: batch_re, 
-                                                    x_d: batch_xd, 
+                    _, acc, loss = sess.run([first_train_op, model.accuracy, model.loss], feed_dict={x: batch_x,
                                                     y: batch_y, 
                                                     model.keep_prob: 0.5, 
                                                     model.e: epoch,
                                                     model.batch: i})
-                   
+                    if args.adv_flag:
+                        _, adv_loss = sess.run([second_train_op, model.adv_loss], feed_dict={x: batch_x, 
+                                                    y: batch_y, 
+                                                    model.keep_prob: 0.5,
+                                                    model.e: epoch,
+                                                    model.batch: i})
+                        adv_losses.append(adv_loss)
                     train_accuracies.append(acc)
                     train_losses.append(loss)
-
-                    if train_rep is None:
-                        train_rep = rep
-                    else:
-                        train_rep = np.append(train_rep, rep, 0)
-
-                    if train_re is None:
-                        train_re = batch_re
-                    else:
-                        train_re = np.append(train_re, batch_re, 0)
-
-                    if train_d is None:
-                        train_d = batch_xd
-                    else:
-                        train_d = np.append(train_d, batch_xd, 0)
-
-                    if train_y is None:
-                        train_y = batch_y
-                    else:
-                        train_y = np.append(train_y, batch_y, 0)
 
                 train_acc_mean = np.mean(train_accuracies)
                 train_acc.append(train_acc_mean)
                 train_loss_mean = np.mean(train_losses)
 
-                # print ()
-
                 # compute loss over validation data
                 if validation:
                     sess.run(validation_init_op)
                     val_accuracies = []
-                    val_rep = None
-                    val_re = None
-                    val_d = None
-                    val_y = None
                     for i in range(val_batches_per_epoch):
                         batch_x, img_batch, batch_y = sess.run(next_batch) 
-                        batch_xd,batch_re=preparion(img_batch,args)
-                        acc, rep = sess.run([model.accuracy, model.rep], feed_dict={x: batch_x, x_re:batch_re,
-                                                        x_d: batch_xd, y: batch_y, 
+                        acc = sess.run([model.accuracy], feed_dict={x: batch_x, y: batch_y, 
                                                         model.keep_prob: 1.0, 
                                                         model.e: epoch,
                                                         model.batch: i})
@@ -218,42 +185,15 @@ def train(args, use_hex=True):
 
                     test_accuracies = []
 
-                    test_rep = None
-                    test_re = None
-                    test_d = None
-                    test_y = None
-
                     sess.run(test_init_op)
                     for i in range(test_batches_per_epoch):
 
                         batch_x, img_batch, batch_y = sess.run(next_batch)
-                        batch_xd, batch_re=preparion(img_batch,args)
-                        acc, rep = sess.run([model.accuracy, model.rep], feed_dict={x: batch_x,
-                                                        x_re: batch_re, x_d: batch_xd, y: batch_y,
+                        acc = sess.run([model.accuracy], feed_dict={x: batch_x, y: batch_y,
                                                         model.keep_prob: 1.0,
                                                         model.e: epoch,
                                                         model.batch: i})
                         test_accuracies.append(acc)
-
-                        if test_rep is None:
-                            test_rep = rep
-                        else:
-                            test_rep = np.append(test_rep, rep, 0)
-
-                        if test_re is None:
-                            test_re = batch_re
-                        else:
-                            test_re = np.append(test_re, batch_re, 0)
-
-                        if test_d is None:
-                            test_d = batch_xd
-                        else:
-                            test_d = np.append(test_d, batch_xd, 0)
-
-                        if test_y is None:
-                            test_y = batch_y
-                        else:
-                            test_y = np.append(test_y, batch_y, 0)
 
                     score = np.mean(test_accuracies)
 
@@ -270,36 +210,23 @@ def train(args, use_hex=True):
             print("Best Validated Model Prediction Accuracy = %.4f " % (score))
             return (train_acc,val_acc,test_acc)
 
-
-
 def main(args): 
     print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':'))) 
 
-    if args.hex==1:
-        (h_train_acc,h_val_acc,h_test_acc)=train(args, True)
-        hex_acc=np.array((h_train_acc,h_val_acc,h_test_acc))
-        np.save(args.save+'hex_acc_'+str(args.corr)+'_'+str(args.row)+'_'+str(args.col)+'_'+str(args.div)+'.npy',hex_acc)
-    else:
-        (n_train_acc,n_val_acc,n_test_acc)=train(args, False)
-        acc=np.array((n_train_acc,n_val_acc,n_test_acc))
-        np.save(args.save+'acc_'+str(args.corr)+'_'+str(args.row)+'_'+str(args.col)+'_'+str(args.div)+'.npy',acc)
-    #draw_all(h_train_acc,h_val_acc,h_test_acc,n_train_acc,n_val_acc,n_test_acc,corr)
+    train(args)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--ckpt_dir', type=str, default='ckpts/', help='Directory for parameter checkpoints')
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true', help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output",  type=str, default='prediction.csv', help='Prediction filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=25000, help='How many epochs to run in total?')
+    parser.add_argument('-e', '--epochs', type=int, default=100, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=64, help='Batch size during training per GPU') # todo: default was 128
-    parser.add_argument('-re', '--re', type=int, default=0, help='regularization?')
-    parser.add_argument('-corr', '--corr', type=int, default=8, help='correlation')
-    parser.add_argument('-hex','--hex',type=int, default=1, help='use hex?')
-    parser.add_argument('-save','--save',type=str, default='hex2/', help='save acc npy path?')
-    parser.add_argument('-row', '--row', type=int, default=0, help='direction delta in row')
-    parser.add_argument('-col', '--col', type=int, default=0, help='direction delta in column')
-    parser.add_argument('-ng', '--ngray', type=int, default=16, help='regularization gray level')
-    parser.add_argument('-div', '--div', type=int, default=200, help='how many epochs before HEX start')
-    #print('input args:\n', json.dumps(vars(args), indent=4, separators=(',',':'))) 
+    parser.add_argument('-save','--save',type=str, default='ckpts/', help='save acc npy path?')
+    parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
+    parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
+    parser.add_argument('-test', '--test', type=int, default=0, help='which one to test?')
+    parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
 
     args = parser.parse_args()
 
