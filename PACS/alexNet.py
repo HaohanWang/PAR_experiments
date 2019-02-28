@@ -363,8 +363,7 @@ def train(args):
                 for i in range(val_batches_per_epoch):
                     batch_x, img_batch, batch_y = sess.run(next_batch)
                     acc = sess.run([model.accuracy], feed_dict={x: batch_x, y: batch_y,
-                                                                model.keep_prob: 1.0,
-                                                                })
+                                                                model.keep_prob: 1.0})
                     val_accuracies.append(acc)
 
                 val_acc_mean = np.mean(val_accuracies)
@@ -381,8 +380,7 @@ def train(args):
                     sess.run(test_init_op)
                     for i in range(test_batches_per_epoch):
                         batch_x, img_batch, batch_y = sess.run(next_batch)
-                        acc = sess.run([model.accuracy], feed_dict={x: batch_x,
-                                                                    y: batch_y,
+                        acc = sess.run([model.accuracy], feed_dict={x: batch_x, y: batch_y,
                                                                     model.keep_prob: 1.0})
                         test_accuracies.append(acc)
 
