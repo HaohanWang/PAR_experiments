@@ -168,7 +168,7 @@ class AlexNet(object):
             # 7th Layer: FC (w ReLu) -> Dropout
             fc7 = fc(dropout6, 4096, 4096, name='fc7')
 
-            fc7 = tf.nn.l2_normalize(fc7, 0)
+            # fc7 = tf.nn.l2_normalize(fc7, 0)
 
             dropout7 = dropout(fc7, self.keep_prob)
 
@@ -187,11 +187,11 @@ class AlexNet(object):
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
         if conf.adv_flag:
-            [_, m, n, d] = pool2.shape
+            [_, m, n, d] = conv1.shape
             with tf.variable_scope('adv'):
                 W_a = weight_variable([1, 1, d, self.class_num])
                 b_a = bias_variable([self.class_num])
-            y_adv_loss = conv2d(pool2, W_a) + b_a
+            y_adv_loss = conv2d(conv1, W_a) + b_a
             ty = tf.reshape(self.y, [-1, 1, 1, self.class_num])
             my = tf.tile(ty, [1, m, n, 1])
             self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
@@ -369,7 +369,7 @@ def train(args):
                 val_acc_mean = np.mean(val_accuracies)
                 val_acc.append(val_acc_mean)
                 # log progress to console
-                print("\nEpoch %d, time = %ds, train accuracy = %.4f, loss = %.4f,  validation accuracy = %.4f" % (
+                print("Epoch %d, time = %ds, train accuracy = %.4f, loss = %.4f,  validation accuracy = %.4f" % (
                     epoch, time.time() - begin, train_acc_mean, train_loss_mean, val_acc_mean))
 
                 if val_acc_mean > best_validate_accuracy:
@@ -405,7 +405,7 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
                         help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=25000, help='How many epochs to run in total?')
+    parser.add_argument('-e', '--epochs', type=int, default=1000, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=64,
                         help='Batch size during training per GPU')  # todo: default was 128
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
