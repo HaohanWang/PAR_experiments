@@ -255,8 +255,6 @@ def train(args):
         second_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "adv")
         second_train_op = optimizer.minimize(model.adv_loss, var_list=second_train_vars)
 
-    saver = tf.train.Saver(tf.trainable_variables())
-
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         print('Starting training')
@@ -313,17 +311,11 @@ def train(args):
                 print("\nEpoch %d, time = %ds, validation accuracy = %.4f" % (epoch, time.time() - begin, val_acc_mean))
             sys.stdout.flush()
 
-            if (epoch + 1) % 10 == 0:
-                ckpt_file = os.path.join(args.ckpt_dir, 'mnist_model.ckpt')
-                saver.save(sess, ckpt_file)
 
-        ckpt_file = os.path.join(args.ckpt_dir, 'mnist_model.ckpt')
-        saver.save(sess, ckpt_file)
-
-        weights = {}
-        for v in tf.trainable_variables():
-            weights[v.name] = v.eval()
-        np.save('/tuned/weights', weights)
+            weights = {}
+            for v in tf.trainable_variables():
+                weights[v.name] = v.eval()
+            np.save('/tuned/weights_' + str(epoch), weights)
 
 def test(testFolderPaths, args):
     num_class = 1000
@@ -368,7 +360,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
                         help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=1000, help='How many epochs to run in total?')
+    parser.add_argument('-e', '--epochs', type=int, default=100, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128,
                         help='Batch size during training per GPU') 
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
