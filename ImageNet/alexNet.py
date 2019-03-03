@@ -315,7 +315,7 @@ def train(args):
             weights = {}
             for v in tf.trainable_variables():
                 weights[v.name] = v.eval()
-            np.save('/tuned/weights_' + str(epoch), weights)
+            np.save('tuned/weights_' + str(epoch), weights)
 
 def test(testFolderPaths, args):
     num_class = 1000
