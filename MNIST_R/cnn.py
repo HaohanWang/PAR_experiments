@@ -151,9 +151,9 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
                 if args.adv_flag:
                     _, adv_loss = sess.run([second_train_op, model.adv_loss],
                                         feed_dict={x: batch_x, y: batch_y, model.keep_prob: 0.5})
+                    adv_losses.append(adv_loss)
                 train_accuracies.append(acc)
                 train_losses.append(loss)
-                adv_losses.append(adv_loss)
             train_acc_mean = np.mean(train_accuracies)
             train_acc.append(train_acc_mean)
 
