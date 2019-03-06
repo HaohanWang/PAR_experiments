@@ -45,7 +45,7 @@ class ImageDataGenerator(object):
 
         """
         self.dataroot = dataroot
-        self.txt_file = txt_file
+        self.txt_file = os.path.join(dataroot, txt_file)
         self.num_classes = num_classes
 
         # retrieve the data from the text file
