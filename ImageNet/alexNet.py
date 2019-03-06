@@ -189,7 +189,7 @@ class AlexNet(object):
 
             self.loss -= conf.lam * self.adv_loss
 
-    def load_initial_weights(self, session):
+    def load_initial_weights(self, session, k=None):
         """Load weights from file into network.
         As the weights from http://www.cs.toronto.edu/~guerzhoy/tf_alexnet/
         come as a dict of lists (e.g. weights['conv1'] is a list) and not as
@@ -197,13 +197,31 @@ class AlexNet(object):
         'biases') we need a special load function
         """
         # Load the weights into memory
-        weights_dict = np.load(self.WEIGHTS_PATH, encoding='bytes').item()
-        # Loop over all layer names stored in the weights dict
-        for op_name in weights_dict:
-            # Check if layer should be trained from scratch
-            with tf.variable_scope('cnn/' + op_name, reuse=True):
-                # Assign weights/biases to their corresponding tf variable
-                for data in weights_dict[op_name]:
+        if k is None:
+            weights_dict = np.load(self.WEIGHTS_PATH, encoding='bytes').item()
+            # Loop over all layer names stored in the weights dict
+            for op_name in weights_dict:
+                with tf.variable_scope('cnn/' + op_name, reuse=True):
+                    # Assign weights/biases to their corresponding tf variable
+                    for data in weights_dict[op_name]:
+
+                        # Biases
+                        if len(data.shape) == 1:
+                            var = tf.get_variable('biases', trainable=True)
+                            session.run(var.assign(data))
+
+                        # Weights
+                        else:
+                            var = tf.get_variable('weights', trainable=True)
+                            session.run(var.assign(data))
+        else:
+            weights_dict = np.load('tuned/weights_'+str(k)+'.npy', encoding='bytes').item()
+            # Loop over all layer names stored in the weights dict
+            for op_name in weights_dict:
+                op_name_str = '/'.join(op_name.split('/')[:-1])
+                with tf.variable_scope(op_name_str, reuse=True):
+                    # Assign weights/biases to their corresponding tf variable
+                    data = weights_dict[op_name]
 
                     # Biases
                     if len(data.shape) == 1:
@@ -308,7 +326,7 @@ def train(args):
                 val_acc_mean = np.mean(val_accuracies)
                 val_acc.append(val_acc_mean)
                 # log progress to console
-                print("\nEpoch %d, time = %ds, validation accuracy = %.4f" % (epoch, time.time() - begin, val_acc_mean))
+                print("Epoch %d, time = %ds, validation accuracy = %.4f" % (epoch, time.time() - begin, val_acc_mean))
             sys.stdout.flush()
 
 
@@ -331,7 +349,7 @@ def test(testFolderPaths, args):
     with tf.Session() as sess:
         print('Starting testing:')
         sess.run(tf.global_variables_initializer())
-        model.load_initial_weights(sess)
+        model.load_initial_weights(sess, k=4)
 
         start = time.time()
         for tp in testFolderPaths:
@@ -379,3 +397,33 @@ if __name__ == '__main__':
     # pretty print args
     print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
     train(args)
+
+    # trainPath = '/media/haohanwang/Info/ImageNet/train/'
+    # valPath = '/media/haohanwang/Info/ImageNet/val/'
+    # testPaths = ['/media/haohanwang/Info/ImageNet/val/']
+    #
+    # categories = ['glass_blur',
+    #               'brightness',
+    #               'fog',
+    #               'speckle_noise',
+    #               'zoom_blur',
+    #               'jpeg_compression',
+    #               'snow',
+    #               'shot_noise',
+    #               'saturate',
+    #               'impulse_noise',
+    #               'contrast',
+    #               'gaussian_noise',
+    #               'frost',
+    #               'pixelate',
+    #               'motion_blur',
+    #               'elastic_transform',
+    #               'spatter',
+    #               'defocus_blur',
+    #               'gaussian_blur']
+    #
+    # for c in categories:
+    #     for i in range(1, 6):
+    #         testPaths.append('/media/haohanwang/Info/ImageNet/C/' + c + '/' + str(i) + '/')
+    #
+    # test(testPaths, args)

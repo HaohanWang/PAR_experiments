@@ -6,7 +6,7 @@ import numpy as np
 
 class ImageNetLoader:
     def __init__(self, batchSize=128, sampleFlag=True):
-        text = [line.strip() for line in open('../data/folder2class.txt')]
+        text = [line.strip() for line in open('../data/ImageNet/folder2class.txt')]
         self.cl = []
         for line in text:
             items = line.split()
