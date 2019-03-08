@@ -177,14 +177,15 @@ class AlexNet(object):
         self.topk_accuracy = tf.reduce_mean(tf.cast(topk_correct, tf.float32))
 
         if conf.adv_flag:
-            [_, m, n, d] = conv3.shape
+            [_, m, n, d] = conv1.shape
             with tf.variable_scope('adv'):
                 W_a = weight_variable([1, 1, d, self.NUM_CLASSES])
                 b_a = bias_variable([self.NUM_CLASSES])
-            rep_dropout = dropout(conv3, self.keep_prob)
-            y_adv_loss = conv2d(rep_dropout, W_a) + b_a
+            # rep_dropout = dropout(conv1, self.keep_prob)
+            y_adv_loss = conv2d(conv1, W_a) + b_a
             ty = tf.reshape(self.y, [-1, 1, 1, self.NUM_CLASSES])
             my = tf.tile(ty, [1, m, n, 1])
+            # self.adv_loss = tf.reduce_max(tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss), axis=[2]))
             self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
             self.adv_acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, -1), tf.argmax(my, -1)), tf.float32))
 
