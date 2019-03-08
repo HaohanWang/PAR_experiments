@@ -177,11 +177,12 @@ class AlexNet(object):
         self.topk_accuracy = tf.reduce_mean(tf.cast(topk_correct, tf.float32))
 
         if conf.adv_flag:
-            [_, m, n, d] = conv1.shape
+            [_, m, n, d] = conv3.shape
             with tf.variable_scope('adv'):
                 W_a = weight_variable([1, 1, d, self.NUM_CLASSES])
                 b_a = bias_variable([self.NUM_CLASSES])
-            y_adv_loss = conv2d(conv1, W_a) + b_a
+            rep_dropout = dropout(conv3, self.keep_prob)
+            y_adv_loss = conv2d(rep_dropout, W_a) + b_a
             ty = tf.reshape(self.y, [-1, 1, 1, self.NUM_CLASSES])
             my = tf.tile(ty, [1, m, n, 1])
             self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
@@ -265,24 +266,27 @@ def train(args):
 
     model = AlexNet(x, y, args)
 
-    optimizer = tf.train.AdamOptimizer(1e-4)
+    optimizer1 = tf.train.AdamOptimizer(1e-4)
     first_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "cnn")
-    first_train_op = optimizer.minimize(model.loss, var_list=first_train_vars)
+    first_train_op = optimizer1.minimize(model.loss, var_list=first_train_vars)
 
     if args.adv_flag:
+        optimizer2 = tf.train.AdamOptimizer(1e-4)
         second_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "adv")
-        second_train_op = optimizer.minimize(model.adv_loss, var_list=second_train_vars)
+        second_train_op = optimizer2.minimize(model.adv_loss, var_list=second_train_vars)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         print('Starting training')
         print('load AlexNet weights')
-        model.load_initial_weights(sess)
+        model.load_initial_weights(sess, k=args.continueEpoch)
 
         validation = True
 
         val_acc = []
         for epoch in range(args.epochs):
+            if args.continueEpoch is not None and epoch <= args.continueEpoch:
+                continue
 
             begin = time.time()
             sess.run(training_init_op)
@@ -349,7 +353,7 @@ def test(testFolderPaths, args):
     with tf.Session() as sess:
         print('Starting testing:')
         sess.run(tf.global_variables_initializer())
-        model.load_initial_weights(sess, k=4)
+        model.load_initial_weights(sess, k=args.continueEpoch)
 
         start = time.time()
         for tp in testFolderPaths:
@@ -384,6 +388,8 @@ if __name__ == '__main__':
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
+    parser.add_argument('-p', '--continueEpoch', type=int, default=None, help='which epoch to continue the training')
+    parser.add_argument('-t', '--testing', type=int, default=0, help='whether for testing case')
 
     args = parser.parse_args()
 
@@ -396,34 +402,37 @@ if __name__ == '__main__':
         os.makedirs(args.save)
     # pretty print args
     print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
-    train(args)
 
-    # trainPath = '/media/haohanwang/Info/ImageNet/train/'
-    # valPath = '/media/haohanwang/Info/ImageNet/val/'
-    # testPaths = ['/media/haohanwang/Info/ImageNet/val/']
-    #
-    # categories = ['glass_blur',
-    #               'brightness',
-    #               'fog',
-    #               'speckle_noise',
-    #               'zoom_blur',
-    #               'jpeg_compression',
-    #               'snow',
-    #               'shot_noise',
-    #               'saturate',
-    #               'impulse_noise',
-    #               'contrast',
-    #               'gaussian_noise',
-    #               'frost',
-    #               'pixelate',
-    #               'motion_blur',
-    #               'elastic_transform',
-    #               'spatter',
-    #               'defocus_blur',
-    #               'gaussian_blur']
-    #
-    # for c in categories:
-    #     for i in range(1, 6):
-    #         testPaths.append('/media/haohanwang/Info/ImageNet/C/' + c + '/' + str(i) + '/')
-    #
-    # test(testPaths, args)
+    if not args.testing:
+        train(args)
+    else:
+        # trainPath = '/media/haohanwang/Info/ImageNet/train/'
+        # valPath = '/media/haohanwang/Info/ImageNet/val/'
+        # testPaths = ['/media/haohanwang/Info/ImageNet/val/']
+        #
+        # categories = ['glass_blur',
+        #               'brightness',
+        #               'fog',
+        #               'speckle_noise',
+        #               'zoom_blur',
+        #               'jpeg_compression',
+        #               'snow',
+        #               'shot_noise',
+        #               'saturate',
+        #               'impulse_noise',
+        #               'contrast',
+        #               'gaussian_noise',
+        #               'frost',
+        #               'pixelate',
+        #               'motion_blur',
+        #               'elastic_transform',
+        #               'spatter',
+        #               'defocus_blur',
+        #               'gaussian_blur']
+        #
+        # for c in categories:
+        #     for i in range(1, 6):
+        #         testPaths.append('/media/haohanwang/Info/ImageNet/C/' + c + '/' + str(i) + '/')
+        #
+        testPaths = ['/media/haohanwang/Info/ImageNet/sketch/']
+        test(testPaths, args)
