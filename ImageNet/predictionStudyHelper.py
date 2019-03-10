@@ -7,7 +7,7 @@ def run():
     filePath = [line.strip() for line in open('filePath.txt')]
 
     pred1 = np.load('preds_AlexNet.npy')
-    pred2 = np.load('preds_ALF_4.npy')
+    pred2 = np.load('preds_ALF_0.npy')
 
     assert label.shape[0] == len(filePath)
     assert label.shape == pred1.shape

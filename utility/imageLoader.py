@@ -129,7 +129,7 @@ class ImageNetLoaderWithDataPath:
     def getNextBatch(self):
         if self.reload:
             self.classCounter += 1
-            if self.classCounter == 20:
+            if self.classCounter == 100:
                 self.classCounter = -1
                 return None, None, None
             else:

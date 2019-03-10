@@ -17,7 +17,7 @@ from tensorflow.data import Iterator
 
 from utility.imageLoader import ImageNetLoaderWithDataPath
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 from alexNet import AlexNet
 
