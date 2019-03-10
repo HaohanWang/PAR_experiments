@@ -18,6 +18,8 @@ sys.path.append('../')
 
 import tensorflow as tf
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 
 def lamda_variable(shape):
     initializer = tf.random_uniform_initializer(dtype=tf.float32, minval=0, maxval=16)
@@ -187,14 +189,15 @@ class AlexNet(object):
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
         if conf.adv_flag:
-            [_, m, n, d] = conv1.shape
+            [_, m, n, d] = conv5.shape
             with tf.variable_scope('adv'):
                 W_a = weight_variable([1, 1, d, self.class_num])
                 b_a = bias_variable([self.class_num])
-            y_adv_loss = conv2d(conv1, W_a) + b_a
+            y_adv_loss = conv2d(conv5, W_a) + b_a
             ty = tf.reshape(self.y, [-1, 1, 1, self.class_num])
             my = tf.tile(ty, [1, m, n, 1])
-            self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
+            self.adv_loss = tf.reduce_min(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
+            # self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
             self.adv_acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, -1), tf.argmax(my, -1)), tf.float32))
 
             self.loss -= conf.lam * self.adv_loss
@@ -301,13 +304,14 @@ def train(args):
     y = tf.placeholder(tf.float32, (None, num_classes))
     model = AlexNet(x, y, args)
 
-    optimizer = tf.train.AdamOptimizer(1e-4)
+    optimizer1 = tf.train.AdamOptimizer(1e-5) #1e-5 for art/sketch
     first_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "cnn")
-    first_train_op = optimizer.minimize(model.loss, var_list=first_train_vars)
+    first_train_op = optimizer1.minimize(model.loss, var_list=first_train_vars)
 
     if args.adv_flag:
+        optimizer2 = tf.train.AdamOptimizer(1e-3)
         second_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "adv")
-        second_train_op = optimizer.minimize(model.adv_loss, var_list=second_train_vars)
+        second_train_op = optimizer2.minimize(model.adv_loss, var_list=second_train_vars)
 
     saver = tf.train.Saver(tf.trainable_variables())
 
@@ -338,6 +342,9 @@ def train(args):
 
             train_accuracies = []
             train_losses = []
+
+            # if args.adv_flag:
+
             for i in range(train_batches_per_epoch):
                 batch_x, img_batch, batch_y = sess.run(next_batch)
 
@@ -345,7 +352,7 @@ def train(args):
                                         feed_dict={x: batch_x, y: batch_y, model.keep_prob: 0.5})
                 if args.adv_flag:
                     _, adv_loss = sess.run([second_train_op, model.adv_loss],
-                                           feed_dict={x: batch_x, y: batch_y, model.keep_prob: 0.5})
+                                           feed_dict={x: batch_x, y: batch_y, model.keep_prob: 1.0})
 
                 train_accuracies.append(acc)
                 train_losses.append(loss)
@@ -405,7 +412,7 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
                         help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=1000, help='How many epochs to run in total?')
+    parser.add_argument('-e', '--epochs', type=int, default=500, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=64,
                         help='Batch size during training per GPU')  # todo: default was 128
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
