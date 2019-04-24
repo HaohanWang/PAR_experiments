@@ -15,6 +15,8 @@ import tensorflow as tf
 
 from DFT import loadMultiDomainMNISTData
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 def weight_variable(shape):
     initializer = tf.truncated_normal_initializer(dtype=tf.float32, stddev=1e-1)
     return tf.get_variable("weights", shape,initializer=initializer, dtype=tf.float32)
@@ -82,8 +84,24 @@ class MNISTcnn(object):
         if conf.adv_flag:
             [_, m, n, d] = h_pool1.shape
             with tf.variable_scope('adv'):
-                W_a = weight_variable([1, 1, d, self.class_num])
+                W_a = weight_variable([1, 1, d, self.class_num]) # file is called adversarial when used in 3 kernel
                 b_a = bias_variable([self.class_num])
+
+                # with tf.variable_scope('l1'):
+                #     W1 = weight_variable([1, 1, d, 100])
+                #     b1 = bias_variable([100])
+                #     rep1 = tf.nn.relu(conv2d(h_pool1, W1) + b1)
+                #     rep1 = tf.reshape(rep1, [-1, 100])
+                # with tf.variable_scope('l2'):
+                #     W2 = weight_variable([100, 50])
+                #     b2 = bias_variable([50])
+                #     rep2 = tf.nn.relu(tf.matmul(rep1, W2) + b2)
+                # with tf.variable_scope('l3'):
+                #     W3 = weight_variable([50, self.class_num])
+                #     b3 = bias_variable([self.class_num])
+                #     y_adv_loss = tf.matmul(rep2, W3) + b3
+                #     y_adv_loss = tf.reshape(y_adv_loss, [-1, m, n, self.class_num])
+
             y_adv_loss = conv2d(h_pool1, W_a) + b_a
             ty = tf.reshape(self.y, [-1, 1, 1, self.class_num])
             my = tf.tile(ty, [1, m, n, 1])
@@ -91,6 +109,23 @@ class MNISTcnn(object):
             self.adv_acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, -1), tf.argmax(my, -1)), tf.float32))
 
             self.loss -= conf.lam * self.adv_loss
+
+    def loadWeights(self, session, test):
+        weights_dict = np.load('weights/weights_cf_'+str(test)+'.npy', encoding='bytes').item()
+        # Loop over all layer names stored in the weights dict
+        for op_name in weights_dict:
+            op_name_str = '/'.join(op_name.split('/')[:-1])
+            if not op_name_str.startswith('adv'):
+                with tf.variable_scope(op_name_str, reuse=True):
+                    # Assign weights/biases to their corresponding tf variable
+                    data = weights_dict[op_name]
+                    if len(data.shape) == 1:
+                        var = tf.get_variable('biases', trainable=True)
+                        session.run(var.assign(data))
+                    # Weights
+                    else:
+                        var = tf.get_variable('weights', trainable=True)
+                        session.run(var.assign(data))
 
 def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
     # """ reuse """
@@ -116,10 +151,7 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
         print('Starting training')
         # sess.run(tf.global_variables_initializer())
         sess.run(tf.initialize_all_variables())
-        if args.load_params:
-            ckpt_file = os.path.join(args.ckpt_dir, 'mnist_model.ckpt')
-            print('Restoring parameters from', ckpt_file)
-            saver.restore(sess, ckpt_file)
+        model.loadWeights(sess, args.test)
 
         num_batches = Xtrain.shape[0] // args.batch_size
 
@@ -198,11 +230,10 @@ def train(args, Xtrain, Ytrain, Xval, Yval, Xtest, Ytest):
                 ckpt_file = os.path.join(args.ckpt_dir, 'mnist_model.ckpt')
                 saver.save(sess, ckpt_file)
 
-        ckpt_file = os.path.join(args.ckpt_dir, 'mnist_model.ckpt')
-        saver.save(sess, ckpt_file)
-        """ reuse """
-        # scope.reuse_variables()
-        # draw(train_acc,val_acc,test_acc,corr,args.epochs)
+        # weights = {}
+        # for v in tf.trainable_variables():
+        #     weights[v.name] = v.eval()
+        # np.save('weights/weights_cf_' + str(args.test), weights)
 
         print("Best Validated Model Prediction Accuracy = %.4f " % (score))
         return (train_acc, val_acc, test_acc)
@@ -222,7 +253,7 @@ if __name__ == "__main__":
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
                         help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=1000, help='How many epochs to run in total?')
+    parser.add_argument('-e', '--epochs', type=int, default=50, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
