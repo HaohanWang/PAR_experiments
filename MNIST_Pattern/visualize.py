@@ -122,10 +122,10 @@ def resultPlot():
     fig = plt.figure(dpi=350, figsize=(25, 5))
     axs = [0 for i in range(10)]
 
-    newFiles = ['pre', 'info', 'local', 'local1']
+    newFiles = ['pre', 'info', 'local', 'localB', 'localM', 'localH']
 
-    fileNames = ['baseline',  'hex', 'pre', 'info', 'local1', 'local']
-    labelNames = ['B', 'H', 'D', 'I', 'G1', 'G2']
+    fileNames = ['baseline',  'hex', 'pre', 'info', 'local', 'localB', 'localM', 'localH']
+    labelNames = ['V', 'E', 'D', 'I', 'A', 'B', 'M', 'H']
 
     plt.style.use('bmh')
 
