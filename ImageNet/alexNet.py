@@ -167,16 +167,16 @@ class AlexNet(object):
 
 
             # 8th Layer: FC and return unscaled activations
-            y_conv_loss = fc(dropout7, 4096, self.NUM_CLASSES, relu=False, name='fc8')
+            self.y_conv_loss = fc(dropout7, 4096, self.NUM_CLASSES, relu=False, name='fc8')
 
 
-        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_conv_loss))
-        self.pred = tf.argmax(y_conv_loss, 1)
+        self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=self.y_conv_loss))
+        self.pred = tf.argmax(self.y_conv_loss, 1)
 
-        self.correct_prediction = tf.equal(tf.argmax(y_conv_loss, 1), tf.argmax(self.y, 1))
+        self.correct_prediction = tf.equal(tf.argmax(self.y_conv_loss, 1), tf.argmax(self.y, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
-        topk_correct = tf.nn.in_top_k(y_conv_loss, tf.argmax(y, 1), k=self.top_k)
+        topk_correct = tf.nn.in_top_k(self.y_conv_loss, tf.argmax(y, 1), k=self.top_k)
         self.topk_accuracy = tf.reduce_mean(tf.cast(topk_correct, tf.float32))
 
         if conf.adv_flag:
@@ -184,8 +184,26 @@ class AlexNet(object):
             with tf.variable_scope('adv'):
                 W_a = weight_variable([1, 1, d, self.NUM_CLASSES])
                 b_a = bias_variable([self.NUM_CLASSES])
+
+                # with tf.variable_scope('l1'):
+                #     W1 = weight_variable([1, 1, d, 100])
+                #     b1 = bias_variable([100])
+                #     rep1 = tf.nn.relu(conv2d(conv1, W1) + b1)
+                #     rep1 = tf.reshape(rep1, [-1, 100])
+                # with tf.variable_scope('l2'):
+                #     W2 = weight_variable([100, 50])
+                #     b2 = bias_variable([50])
+                #     rep2 = tf.nn.relu(tf.matmul(rep1, W2) + b2)
+                # with tf.variable_scope('l3'):
+                #     W3 = weight_variable([50, self.NUM_CLASSES])
+                #     b3 = bias_variable([self.NUM_CLASSES])
+                #     y_adv_loss = tf.matmul(rep2, W3) + b3
+                #     y_adv_loss = tf.reshape(y_adv_loss, [-1, m, n, self.NUM_CLASSES])
+
             # rep_dropout = dropout(conv1, self.keep_prob)
-            y_adv_loss = conv2d(conv1, W_a) + b_a
+            y_adv_loss = tf.nn.relu(conv2d(conv1, W_a) + b_a)
+            # y_adv_loss = conv2d(conv5, W_a) + b_a
+
             ty = tf.reshape(self.y, [-1, 1, 1, self.NUM_CLASSES])
             my = tf.tile(ty, [1, m, n, 1])
             self.adv_loss = tf.reduce_min(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
@@ -387,7 +405,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
                         help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=100, help='How many epochs to run in total?')
+    parser.add_argument('-e', '--epochs', type=int, default=5, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128,
                         help='Batch size during training per GPU') 
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')

@@ -17,7 +17,7 @@ from tensorflow.data import Iterator
 
 from utility.imageLoader import ImageNetLoaderWithDataPath
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 from alexNet import AlexNet
 
@@ -46,6 +46,7 @@ def predictionStudy(testFolderPaths, args):
 
         preds = None
         labels = None
+        confidence = None
         paths = []
 
         for tp in testFolderPaths:
@@ -55,16 +56,18 @@ def predictionStudy(testFolderPaths, args):
             test_k_accuracies = []
             batch_x, batch_y, batch_path = testDataLoader.getNextBatch()
             while batch_x is not None:
-                acc, k_accuracy, pred = sess.run([model.accuracy, model.topk_accuracy, model.pred],
+                acc, k_accuracy, pred, logits = sess.run([model.accuracy, model.topk_accuracy, model.pred, model.y_conv_loss],
                                            feed_dict={x: batch_x, y: batch_y,
                                                       model.keep_prob: 1.0, model.top_k: 5})
-
+                conf = np.exp(logits[:,pred])/np.sum(np.exp(logits), 1)
                 if labels is None:
                     labels = np.argmax(batch_y, 1)
                     preds = pred
+                    confidence = conf
                 else:
                     labels = np.append(labels, np.argmax(batch_y, 1))
                     preds = np.append(preds, pred)
+                    confidence = np.append(confidence, conf)
                 paths.extend(batch_path)
 
                 test_accuracies.append(acc)
@@ -85,33 +88,33 @@ def predictionStudy(testFolderPaths, args):
             name2save = 'ALF_'+str(step2load)
         np.save('labels', labels)
         np.save('preds_' + name2save, preds)
+        np.save('confidence_' + name2save, confidence)
 
 if __name__ == '__main__':
-    if __name__ == '__main__':
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-c', '--ckpt_dir', type=str, default='ckpts/', help='Directory for parameter checkpoints')
-        parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
-                            help='Restore training from previous model checkpoint?')
-        parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
-        parser.add_argument('-e', '--epochs', type=int, default=100, help='How many epochs to run in total?')
-        parser.add_argument('-b', '--batch_size', type=int, default=128,
-                            help='Batch size during training per GPU')
-        parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
-        parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
-        parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
-        parser.add_argument('-s', '--step', type=int, default=-1, help='with weights we want to load')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--ckpt_dir', type=str, default='ckpts/', help='Directory for parameter checkpoints')
+    parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
+                        help='Restore training from previous model checkpoint?')
+    parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
+    parser.add_argument('-e', '--epochs', type=int, default=100, help='How many epochs to run in total?')
+    parser.add_argument('-b', '--batch_size', type=int, default=128,
+                        help='Batch size during training per GPU')
+    parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
+    parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
+    parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
+    parser.add_argument('-s', '--step', type=int, default=-1, help='with weights we want to load')
 
-        args = parser.parse_args()
+    args = parser.parse_args()
 
-        tf.set_random_seed(100)
-        np.random.seed()
+    tf.set_random_seed(100)
+    np.random.seed()
 
-        if not os.path.exists(args.ckpt_dir):
-            os.makedirs(args.ckpt_dir)
-        if not os.path.exists(args.save):
-            os.makedirs(args.save)
-        # pretty print args
-        print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
+    if not os.path.exists(args.ckpt_dir):
+        os.makedirs(args.ckpt_dir)
+    if not os.path.exists(args.save):
+        os.makedirs(args.save)
+    # pretty print args
+    print('input args:\n', json.dumps(vars(args), indent=4, separators=(',', ':')))
 
-        testPaths = ['/media/haohanwang/Info/ImageNet/sketch/']
-        predictionStudy(testPaths, args)
+    testPaths = ['/media/haohanwang/Info/ImageNet/sketch/']
+    predictionStudy(testPaths, args)
