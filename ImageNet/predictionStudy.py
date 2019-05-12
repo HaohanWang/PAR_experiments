@@ -59,7 +59,7 @@ def predictionStudy(testFolderPaths, args):
                 acc, k_accuracy, pred, logits = sess.run([model.accuracy, model.topk_accuracy, model.pred, model.y_conv_loss],
                                            feed_dict={x: batch_x, y: batch_y,
                                                       model.keep_prob: 1.0, model.top_k: 5})
-                conf = np.exp(logits[:,pred])/np.sum(np.exp(logits), 1)
+                conf = np.exp(np.max(logits, 1))/np.sum(np.exp(logits), 1)
                 if labels is None:
                     labels = np.argmax(batch_y, 1)
                     preds = pred
