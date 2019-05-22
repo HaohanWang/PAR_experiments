@@ -42,40 +42,40 @@ def oneHotRepresentation(y, num=10):
     return np.array(r)
 
 def loadDataCifar10():
-    Xtrain = np.load('../../data/cifar10/trainData2.npy').astype(np.float)
-    Ytrain = np.load('../../data/cifar10/trainLabel2.npy').astype(int)
-    Xtest = np.load('../../data/cifar10/testData.npy').astype(np.float)
-    Ytest = np.load('../../data/cifar10/testLabel.npy').astype(int)
+    Xtrain = np.load('../data/cifar10/trainData2.npy').astype(np.float)
+    Ytrain = np.load('../data/cifar10/trainLabel2.npy').astype(int)
+    Xtest = np.load('../data/cifar10/testData.npy').astype(np.float)
+    Ytest = np.load('../data/cifar10/testLabel.npy').astype(int)
 
     # padding for data augmentation
     return Xtrain, oneHotRepresentation(Ytrain), Xtest, oneHotRepresentation(Ytest)
 
 def loadDataCifar10_DANN(case):
-    Xtrain = np.load('../../data/cifar10/trainData2.npy').astype(np.float)
-    Ytrain = np.load('../../data/cifar10/trainLabel2.npy').astype(int)
-    Ytest = np.load('../../data/cifar10/testLabel.npy').astype(int)
+    Xtrain = np.load('../data/cifar10/trainData2.npy').astype(np.float)
+    Ytrain = np.load('../data/cifar10/trainLabel2.npy').astype(int)
+    Ytest = np.load('../data/cifar10/testLabel.npy').astype(int)
     if case == 0:
-        Xtrain2 = np.load('../../data/cifar10/testData_greyscale.npy').astype(np.float)
-        Xtest = np.load('../../data/cifar10/testData_greyscale.npy').astype(np.float)
+        Xtrain2 = np.load('../data/cifar10/testData_greyscale.npy').astype(np.float)
+        Xtest = np.load('../data/cifar10/testData_greyscale.npy').astype(np.float)
     elif case == 1:
-        Xtrain2 = np.load('../../data/cifar10/testData_negative.npy').astype(np.float)
-        Xtest = np.load('../../data/cifar10/testData_negative.npy').astype(np.float)
+        Xtrain2 = np.load('../data/cifar10/testData_negative.npy').astype(np.float)
+        Xtest = np.load('../data/cifar10/testData_negative.npy').astype(np.float)
     elif case == 2:
-        Xtrain2 = np.load('../../data/cifar10/testData_randomkernel.npy').astype(np.float)
-        Xtest = np.load('../../data/cifar10/testData_randomkernel.npy').astype(np.float)
+        Xtrain2 = np.load('../data/cifar10/testData_randomkernel.npy').astype(np.float)
+        Xtest = np.load('../data/cifar10/testData_randomkernel.npy').astype(np.float)
     elif case == 3:
-        Xtrain2 = np.load('../../data/cifar10/testData_radiokernel.npy').astype(np.float)
-        Xtest = np.load('../../data/cifar10/testData_radiokernel.npy').astype(np.float)
+        Xtrain2 = np.load('../data/cifar10/testData_radiokernel.npy').astype(np.float)
+        Xtest = np.load('../data/cifar10/testData_radiokernel.npy').astype(np.float)
 
     # padding for data augmentation
     return Xtrain, Xtrain2, oneHotRepresentation(Ytrain), Xtest, oneHotRepresentation(Ytest)
 
 def load_and_deal(row,column,ngray=16):
     # load data
-    Xtrain = np.load('../../data/cifar10/trainData2.npy').astype(np.float)
-    Ytrain = np.load('../../data/cifar10/trainLabel2.npy').astype(int)
-    Xtest = np.load('../../data/cifar10/testData.npy').astype(np.float)
-    Ytest = np.load('../../data/cifar10/testLabel.npy').astype(int)
+    Xtrain = np.load('../data/cifar10/trainData2.npy').astype(np.float)
+    Ytrain = np.load('../data/cifar10/trainLabel2.npy').astype(int)
+    Xtest = np.load('../data/cifar10/testData.npy').astype(np.float)
+    Ytest = np.load('../data/cifar10/testLabel.npy').astype(int)
     Xtrain_gray=tf.image.rgb_to_grayscale(Xtrain)
     Xtest_gray=tf.image.rgb_to_grayscale(Xtest)
 
@@ -116,3 +116,26 @@ def load_and_deal(row,column,ngray=16):
     ################# delta ################
 
     return Xtrain, xtrain_re, xtrain_d, ytrain, Xtest, xtest_re, xtest_d, ytest
+
+def preparion(img, args):
+    row = args.row
+    column = args.col
+    x = np.copy(img)
+    x_d = np.copy(img)
+    x_re = np.copy(img)
+
+    x = x.reshape(x.shape[0], 32*32)
+    x_re = x_re.reshape(x_re.shape[0], 32*32)
+    x_d = x_d.reshape(x_d.shape[0], 32*32)
+
+    direction = np.diag((-1) * np.ones(32*32))
+    for i in range(32*32):
+        x = int(math.floor(i / 32))
+        y = int(i % 32)
+        if x + row < 32 and y + column < 32:
+            direction[i][i + row * 32 + column] = 1
+
+    for i in range(x_re.shape[0]):
+        x_re[i] = np.asarray(1.0 * x_re[i] * (args.ngray - 1) / x_re[i].max(), dtype=np.float32)
+        x_d[i] = np.dot(x_re[i], direction)
+    return x_d, x_re

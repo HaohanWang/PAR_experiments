@@ -10,10 +10,9 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
-from nnutil import weight_variable, bias_variable, activation_summary
-from nnutil import conv2d, output_layer, batch_normalization_layer, conv_bn_relu_layer, residual_block
-from datautil import loadDataCifar10, whitening_image, random_crop_and_flip
-
+from ..util import nn_util
+from ..util import data_util
+from ..util import test_util
 
 def sample_lognormal(mean, sigma=None, sigma0=1.):
     '''Samples a log-normal using the reparametrization trick'''
@@ -26,13 +25,9 @@ class ResNet(object):
         self.x = tf.reshape(x, shape=[-1, 32, 32, 3])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
-        self.model_path = os.path.join('../../results/Cifar10/models/', args.output)
+        self.model_path = os.path.join('../results/Cifar10/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
-
-        if int(args.input_epoch) == 0:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input)
-        else:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input, str(args.input_epoch))
+        self.load_model_path = os.path.join('../results/Cifar10/models/', args.input, str(args.input_epoch))
 
         n = 5
         reuse = False
@@ -41,43 +36,41 @@ class ResNet(object):
 
             layers = []
             with tf.variable_scope('conv0', reuse=reuse):
-                conv0 = conv_bn_relu_layer(self.x, [3, 3, 3, 16], 1)
-                activation_summary(conv0)
+                conv0 = nn_util.conv_bn_relu_layer(self.x, [3, 3, 3, 16], 1)
+                nn_util.activation_summary(conv0)
                 layers.append(conv0)
 
             for i in range(n):
                 with tf.variable_scope('conv1_%d' % i, reuse=reuse):
                     if i == 0:
-                        conv1 = residual_block(layers[-1], 16, first_block=True)
+                        conv1 = nn_util.residual_block(layers[-1], 16, first_block=True)
                     else:
-                        conv1 = residual_block(layers[-1], 16)
-                    activation_summary(conv1)
+                        conv1 = nn_util.residual_block(layers[-1], 16)
+                    nn_util.activation_summary(conv1)
                     layers.append(conv1)
 
             for i in range(n):
                 with tf.variable_scope('conv2_%d' % i, reuse=reuse):
-                    conv2 = residual_block(layers[-1], 32)
-                    activation_summary(conv2)
+                    conv2 = nn_util.residual_block(layers[-1], 32)
+                    nn_util.activation_summary(conv2)
                     layers.append(conv2)
 
             for i in range(n):
                 with tf.variable_scope('conv3_%d' % i, reuse=reuse):
-                    conv3 = residual_block(layers[-1], 64)
+                    conv3 = nn_util.residual_block(layers[-1], 64)
                     layers.append(conv3)
                 assert conv3.get_shape().as_list()[1:] == [8, 8, 64]
 
             
             with tf.variable_scope('fc', reuse=reuse):
                 in_channel = layers[-1].get_shape().as_list()[-1]
-                bn_layer = batch_normalization_layer(layers[-1], in_channel)
+                bn_layer = nn_util.batch_normalization_layer(layers[-1], in_channel)
                 relu_layer = tf.nn.relu(bn_layer)
                 global_pool = tf.reduce_mean(relu_layer, [1, 2])
 
-                # h_fc1_drop = tf.nn.dropout(global_pool, self.keep_prob)
-
             with tf.variable_scope('infodrop', reuse=reuse):
                 in_channel_id = layers[-1].get_shape().as_list()[-1]
-                bn_layer_id = batch_normalization_layer(layers[-1], in_channel_id)
+                bn_layer_id = nn_util.batch_normalization_layer(layers[-1], in_channel_id)
                 sigmoid_layer_id = tf.sigmoid(bn_layer_id)
                 global_pool_id = tf.reduce_mean(sigmoid_layer_id, [1, 2])
 
@@ -86,7 +79,7 @@ class ResNet(object):
                 h_fc1_drop = global_pool*e
                 
                 assert h_fc1_drop.get_shape().as_list()[-1:] == [64]
-                output = output_layer(h_fc1_drop, 10)
+                output = nn_util.output_layer(h_fc1_drop, 10)
                 layers.append(output)
 
         y_conv = output
@@ -105,12 +98,8 @@ class ResNet(object):
     def load_initial_weights(self, session):
         for v in tf.trainable_variables():
             saveName = v.name.replace('/', '_')
-            # print (saveName)
             if saveName.startswith('cnn'):
                 data = np.load(self.load_model_path + '/cnn_' + saveName[4:] + '.npy')
-                session.run(v.assign(data))
-            elif self.args.input != 'ResNet' and saveName.startswith('adv'):
-                data = np.load(self.load_model_path + '/adv_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
 
 
@@ -119,7 +108,7 @@ def generate_train_batch(args, train_data, train_labels, train_batch_size, paddi
     batch_label = train_labels[i*train_batch_size:(i+1)*train_batch_size, :]
 
     if args.augmentation:
-        batch_data = random_crop_and_flip(batch_data, padding_size=padding_size)
+        batch_data = data_util.random_crop_and_flip(batch_data, padding_size=padding_size)
     return batch_data, batch_label
 
 def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_size, i):
@@ -127,16 +116,12 @@ def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_s
     batch_label = test_labels[i*test_batch_size:(i+1)*test_batch_size, :]
     return batch_data, batch_label
 
-def train(args, Xtrain, Ytrain, Xtest, Ytest):
+def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
     num_class = 10
 
-    model_path = os.path.join('../../results/Cifar10/models', args.output)
+    model_path = os.path.join('../results/Cifar10/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)
-
-    x = tf.placeholder(tf.float32, (None, 32, 32, 3))
-    y = tf.placeholder(tf.float32, (None, num_class))
-    model = ResNet(x, y, args)
 
     with tf.Session() as sess:
         print('Starting training')
@@ -212,8 +197,6 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
-                        help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='infodrop', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
     parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
@@ -229,10 +212,19 @@ if __name__ == "__main__":
 
     os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu_id
 
-    Xtrain,Ytrain, Xtest, Ytest = loadDataCifar10()
+    Xtrain,Ytrain, Xtest, Ytest = data_util.loadDataCifar10()
     if args.augmentation:
         pad_width = ((0, 0), (2, 2), (2, 2), (0, 0))
         Xtrain = np.pad(Xtrain, pad_width=pad_width, mode='constant', constant_values=0)
 
-    print(Xtrain.shape, Xtest.shape)
-    train(args, Xtrain, Ytrain, Xtest, Ytest)
+
+    num_class = 10
+
+    x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+    y = tf.placeholder(tf.float32, (None, num_class))
+    x_re = tf.placeholder(tf.float32, (None, 32 * 32))
+    x_d = tf.placeholder(tf.float32, (None, 32 * 32))
+    model = ResNet(x, y, x_re, x_d, args, Hex_flag=True)
+
+    train(args, model, Xtrain, Ytrain, Xtest, Ytest)
+    test_util.test(args, model)

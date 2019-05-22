@@ -10,10 +10,9 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
-from nnutil import weight_variable, bias_variable, activation_summary, theta_variable, lamda_variable
-from nnutil import conv2d, output_layer, batch_normalization_layer, conv_bn_relu_layer, residual_block
-from datautil import loadDataCifar10, whitening_image, random_crop_and_flip
-
+from ..util import nn_util
+from ..util import data_util
+from ..util import test_util
 
 class ResNet(object):
     def __init__(self, x, y, x_re, x_d, args, Hex_flag=False):
@@ -22,13 +21,9 @@ class ResNet(object):
         self.x_d = tf.reshape(x_d, shape=[-1, 1, 1024])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
-        self.model_path = os.path.join('../../results/Cifar10/models/', args.output)
+        self.model_path = os.path.join('../results/Cifar10/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
-
-        if int(args.input_epoch) == 0:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input)
-        else:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input, str(args.input_epoch))
+        self.load_model_path = os.path.join('../results/Cifar10/models/', args.input, str(args.input_epoch))
 
         # --------------------------
 
@@ -39,34 +34,34 @@ class ResNet(object):
 
             layers = []
             with tf.variable_scope('conv0', reuse=reuse):
-                conv0 = conv_bn_relu_layer(self.x, [3, 3, 3, 16], 1)
-                activation_summary(conv0)
+                conv0 = nn_util.conv_bn_relu_layer(self.x, [3, 3, 3, 16], 1)
+                nn_util.activation_summary(conv0)
                 layers.append(conv0)
 
             for i in range(n):
                 with tf.variable_scope('conv1_%d' % i, reuse=reuse):
                     if i == 0:
-                        conv1 = residual_block(layers[-1], 16, first_block=True)
+                        conv1 = nn_util.residual_block(layers[-1], 16, first_block=True)
                     else:
-                        conv1 = residual_block(layers[-1], 16)
-                    activation_summary(conv1)
+                        conv1 = nn_util.residual_block(layers[-1], 16)
+                    nn_util.activation_summary(conv1)
                     layers.append(conv1)
 
             for i in range(n):
                 with tf.variable_scope('conv2_%d' % i, reuse=reuse):
-                    conv2 = residual_block(layers[-1], 32)
-                    activation_summary(conv2)
+                    conv2 = nn_util.residual_block(layers[-1], 32)
+                    nn_util.activation_summary(conv2)
                     layers.append(conv2)
 
             for i in range(n):
                 with tf.variable_scope('conv3_%d' % i, reuse=reuse):
-                    conv3 = residual_block(layers[-1], 64)
+                    conv3 = nn_util.residual_block(layers[-1], 64)
                     layers.append(conv3)
                 assert conv3.get_shape().as_list()[1:] == [8, 8, 64]
 
             with tf.variable_scope('fc', reuse=reuse):
                 in_channel = layers[-1].get_shape().as_list()[-1]
-                bn_layer = batch_normalization_layer(layers[-1], in_channel)
+                bn_layer = nn_util.batch_normalization_layer(layers[-1], in_channel)
                 relu_layer = tf.nn.relu(bn_layer)
                 # B x 64
                 global_pool = tf.reduce_mean(relu_layer, [1, 2])
@@ -75,15 +70,15 @@ class ResNet(object):
         with tf.variable_scope('fc2', reuse=reuse):
             # NGLCM
             with tf.variable_scope('nglcm'):
-                self.lamda = lamda_variable([args.ngray, 1])
-                theta = theta_variable([args.ngray, 1])
+                self.lamda = nn_util.lamda_variable([args.ngray, 1])
+                theta = nn_util.theta_variable([args.ngray, 1])
                 self.g = tf.matmul(tf.minimum(tf.maximum(tf.subtract(self.x_d, self.lamda), 1e-5), 1),
                               tf.minimum(tf.maximum(tf.subtract(self.x_re, theta), 1e-5), 1), transpose_b=True)/1024.0
 
             with tf.variable_scope("nglcm_fc1"):
                 g_flat = tf.reshape(self.g, [-1, args.ngray * args.ngray])
-                glgcm_W_fc1 = weight_variable([args.ngray * args.ngray, 32])
-                glgcm_b_fc1 = bias_variable([32])
+                glgcm_W_fc1 = nn_util.weight_variable([args.ngray * args.ngray, 32])
+                glgcm_b_fc1 = nn_util.bias_variable([32])
                 self.glgcm_h_fc1 = tf.nn.relu(tf.matmul(g_flat, glgcm_W_fc1) + glgcm_b_fc1)
 
             # concatenate the representations (Equation 3 in paper)
@@ -95,8 +90,8 @@ class ResNet(object):
 
             # --------------------------
             input_dim = yconv_contact_loss.get_shape().as_list()[-1]
-            W_fc2 = weight_variable([input_dim, 10])
-            b_fc2 = bias_variable([10])
+            W_fc2 = nn_util.weight_variable([input_dim, 10])
+            b_fc2 = nn_util.bias_variable([10])
             y_conv_loss = tf.matmul(yconv_contact_loss, W_fc2) + b_fc2
             y_conv_pred = tf.matmul(yconv_contact_pred, W_fc2) + b_fc2
             self.y_conv_H = tf.matmul(yconv_contact_H, W_fc2) + b_fc2
@@ -143,38 +138,15 @@ class ResNet(object):
                 data = np.load(self.load_model_path + '/fc2_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
             if saveName.startswith('cnn'):
-                data = np.load('../../results/Cifar10/models/resnet/199' + '/cnn_' + saveName[4:] + '.npy')
+                data = np.load(self.load_model_path + '/cnn_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
-
-def preparion(img, args):
-    row = args.row
-    column = args.col
-    x = np.copy(img)
-    x_d = np.copy(img)
-    x_re = np.copy(img)
-
-    x = x.reshape(x.shape[0], 32*32)
-    x_re = x_re.reshape(x_re.shape[0], 32*32)
-    x_d = x_d.reshape(x_d.shape[0], 32*32)
-
-    direction = np.diag((-1) * np.ones(32*32))
-    for i in range(32*32):
-        x = int(math.floor(i / 32))
-        y = int(i % 32)
-        if x + row < 32 and y + column < 32:
-            direction[i][i + row * 32 + column] = 1
-
-    for i in range(x_re.shape[0]):
-        x_re[i] = np.asarray(1.0 * x_re[i] * (args.ngray - 1) / x_re[i].max(), dtype=np.float32)
-        x_d[i] = np.dot(x_re[i], direction)
-    return x_d, x_re
 
 def generate_train_batch(args, train_data, train_labels, train_batch_size, padding_size, i):
     batch_data = train_data[i*train_batch_size:(i+1)*train_batch_size, :]
     batch_label = train_labels[i*train_batch_size:(i+1)*train_batch_size, :]
 
     if args.augmentation:
-        batch_data = random_crop_and_flip(batch_data, padding_size=padding_size)
+        batch_data = data_util.random_crop_and_flip(batch_data, padding_size=padding_size)
 
     gray=np.dot(batch_data[...,:3], [0.2989, 0.5870, 0.1140])
 
@@ -188,18 +160,11 @@ def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_s
 
     return batch_data, batch_label, gray
 
-def train(args, Xtrain, Ytrain, Xtest, Ytest):
-    num_class = 10
+def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
 
-    model_path = os.path.join('../../results/Cifar10/models', args.output)
+    model_path = os.path.join('../results/Cifar10/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)
-
-    x = tf.placeholder(tf.float32, (None, 32, 32, 3))
-    y = tf.placeholder(tf.float32, (None, num_class))
-    x_re = tf.placeholder(tf.float32, (None, 32 * 32))
-    x_d = tf.placeholder(tf.float32, (None, 32 * 32))
-    model = ResNet(x, y, x_re, x_d, args, Hex_flag=True)
 
     with tf.Session() as sess:
         print('Starting training')
@@ -233,7 +198,7 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
 
             for i in range(num_batches):
                 batch_x, batch_y, img_batch = generate_train_batch(args, Xtrain, Ytrain, args.batch_size, 2, i)
-                batch_xd, batch_re = preparion(img_batch, args)
+                batch_xd, batch_re = data_util.prepare(img_batch, args)
                 _, acc, loss = sess.run([model.optimizer, model.accuracy, model.loss], feed_dict={x: batch_x,
                                                                                             x_re: batch_re,
                                                                                             x_d: batch_xd,
@@ -256,7 +221,7 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
                 test_accuracies = []
                 for i in range(test_num_batches):
                     batch_x, batch_y, img_batch = generate_test_batch(args, Xtest, Ytest, args.batch_size, 2, i)
-                    batch_xd, batch_re = preparion(img_batch, args)
+                    batch_xd, batch_re = data_util.prepare(img_batch, args)
 
                     acc = sess.run(model.accuracy, feed_dict={x: batch_x,
                                                                 x_re: batch_re,
@@ -301,10 +266,19 @@ if __name__ == "__main__":
 
     os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu_id
 
-    Xtrain,Ytrain, Xtest, Ytest = loadDataCifar10()
+    Xtrain,Ytrain, Xtest, Ytest = data_util.loadDataCifar10()
     if args.augmentation:
         pad_width = ((0, 0), (2, 2), (2, 2), (0, 0))
         Xtrain = np.pad(Xtrain, pad_width=pad_width, mode='constant', constant_values=0)
 
-    print(Xtrain.shape, Xtest.shape)
-    train(args, Xtrain, Ytrain, Xtest, Ytest)
+
+    num_class = 10
+
+    x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+    y = tf.placeholder(tf.float32, (None, num_class))
+    x_re = tf.placeholder(tf.float32, (None, 32 * 32))
+    x_d = tf.placeholder(tf.float32, (None, 32 * 32))
+    model = ResNet(x, y, x_re, x_d, args, Hex_flag=True)
+
+    train(args, model, Xtrain, Ytrain, Xtest, Ytest)
+    test_util.test_HEX(args, model)
