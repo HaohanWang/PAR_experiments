@@ -94,7 +94,6 @@ class ResNet(object):
             self.loss -= self.lamb * self.adv_loss
 
         optimizer = tf.train.MomentumOptimizer(self.learning_rate, momentum=0.9)
-        # optimizer = tf.train.AdamOptimizer(self.learning_rate)
         first_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "cnn")
         self.first_train_op = optimizer.minimize(self.loss, var_list=first_train_vars)
 
@@ -106,11 +105,10 @@ class ResNet(object):
     def load_initial_weights(self, session):
         for v in tf.trainable_variables():
             saveName = v.name.replace('/', '_')
-            # print (saveName)
             if saveName.startswith('cnn'):
                 data = np.load(self.load_model_path + '/cnn_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
-            elif self.args.input != 'haohancnn' and saveName.startswith('adv'):
+            elif self.args.input != 'ResNet' and saveName.startswith('adv'):
                 data = np.load(self.load_model_path + '/adv_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
 
@@ -272,7 +270,7 @@ if __name__ == "__main__":
                         help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='cnn', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
-    parser.add_argument("-i", "--input", type=str, default='haohancnn', help='Load model filepath')
+    parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
     parser.add_argument('-e', '--epochs', type=int, default=500, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
     parser.add_argument('-s', '--seed', type=int, default=0, help='random seed for generating data')

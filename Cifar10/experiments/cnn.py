@@ -97,22 +97,9 @@ class ResNet(object):
             if saveName.startswith('cnn'):
                 data = np.load(self.load_model_path + '/cnn_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
-            elif self.args.input != 'haohancnn' and saveName.startswith('adv'):
+            elif self.args.input != 'ResNet' and saveName.startswith('adv'):
                 data = np.load(self.load_model_path + '/adv_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
-
-def whitening_image(image_np):
-    '''
-    Performs per_image_whitening
-    :param image_np: a 4D numpy array representing a batch of images
-    :return: the image numpy array after whitened
-    '''
-    for i in range(len(image_np)):
-        mean = np.mean(image_np[i, ...])
-        # Use adjusted standard deviation here, in case the std == 0.
-        std = np.max([np.std(image_np[i, ...]), 1.0/np.sqrt(32 * 32 * 3)])
-        image_np[i,...] = (image_np[i, ...] - mean) / std
-    return image_np
 
 def generate_train_batch(args, train_data, train_labels, train_batch_size, padding_size, i):
     batch_data = train_data[i*train_batch_size:(i+1)*train_batch_size, :]
@@ -213,7 +200,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", "--output", type=str, default='hex', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
-    parser.add_argument("-i", "--input", type=str, default='haohancnn', help='Load model filepath')
+    parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
     parser.add_argument('-e', '--epochs', type=int, default=400, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
     parser.add_argument('-s', '--seed', type=int, default=0, help='random seed for generating data')
