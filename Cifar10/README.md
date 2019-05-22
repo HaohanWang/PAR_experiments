@@ -33,7 +33,10 @@ python generate_data.py
 ### Model training and evaluation
 Reproduce teh results of PAR and competing models. Note that for DANN we need to indicate the test domain.
 ```
-cd experiments/
+cd ..
+mkdir cachedir/
+mkdir cachedir/logs
+mkdir cachedir/models
 python cnn.py
 python cnn_HEX.py
 python cnn_InfoDrop.py
