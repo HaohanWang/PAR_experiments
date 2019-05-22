@@ -1,5 +1,38 @@
 import numpy as np
 
+def horizontal_flip(image, axis):
+    '''
+    Flip an image at 50% possibility
+    :param image: a 3 dimensional numpy array representing an image
+    :param axis: 0 for vertical flip and 1 for horizontal flip
+    :return: 3D image after flip
+    '''
+    flip_prop = np.random.randint(low=0, high=2)
+    if flip_prop == 0:
+        image = cv2.flip(image, axis)
+
+    return image
+
+def random_crop_and_flip(batch_data, padding_size):
+    '''
+    Helper to random crop and random flip a batch of images
+    :param padding_size: int. how many layers of 0 padding was added to each side
+    :param batch_data: a 4D batch array
+    :return: randomly cropped and flipped image
+    '''
+    cropped_batch = np.zeros(len(batch_data) * 32 * 32 * 3).reshape(
+        len(batch_data), 32, 32, 3)
+
+    for i in range(len(batch_data)):
+        x_offset = np.random.randint(low=0, high=2 * padding_size, size=1)[0]
+        y_offset = np.random.randint(low=0, high=2 * padding_size, size=1)[0]
+        cropped_batch[i, ...] = batch_data[i, ...][x_offset:x_offset+32,
+                      y_offset:y_offset+32, :]
+
+        cropped_batch[i, ...] = horizontal_flip(image=cropped_batch[i, ...], axis=1)
+
+    return cropped_batch
+    
 def oneHotRepresentation(y, num=10):
     r = []
     for i in range(y.shape[0]):
@@ -9,16 +42,6 @@ def oneHotRepresentation(y, num=10):
     return np.array(r)
 
 def loadDataCifar10():
-    Xtrain = np.load('../../data/cifar10/trainData.npy').astype(np.float)
-    Ytrain = np.load('../../data/cifar10/trainLabel.npy').astype(int)
-    Xval = np.load('../../data/cifar10/valData.npy').astype(np.float)
-    Yval = np.load('../../data/cifar10/valLabel.npy').astype(int)
-    Xtest = np.load('../../data/cifar10/testData.npy').astype(np.float)
-    Ytest = np.load('../../data/cifar10/testLabel.npy').astype(int)
-
-    return Xtrain, oneHotRepresentation(Ytrain), Xval, oneHotRepresentation(Yval), Xtest, oneHotRepresentation(Ytest)
-
-def loadDataCifar10_2():
     Xtrain = np.load('../../data/cifar10/trainData2.npy').astype(np.float)
     Ytrain = np.load('../../data/cifar10/trainLabel2.npy').astype(int)
     Xtest = np.load('../../data/cifar10/testData.npy').astype(np.float)
@@ -93,8 +116,3 @@ def load_and_deal(row,column,ngray=16):
     ################# delta ################
 
     return Xtrain, xtrain_re, xtrain_d, ytrain, Xtest, xtest_re, xtest_d, ytest
-
-def loadCifarTest():
-    Xtest_g = np.load('../../data/cifar10/testData_greyscale.npy').astype(np.float)
-    Xtest_n = np.load('../../data/cifar10/testData_negative.npy').astype(np.float)
-    Ytest = np.load('../../data/cifar10/testLabel.npy').astype(int)
