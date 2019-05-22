@@ -19,13 +19,13 @@ class ResNet(object):
         self.x = tf.reshape(x, shape=[-1, 32, 32, 3])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
-        self.model_path = os.path.join('../../results/Cifar10/models/', args.output)
+        self.model_path = os.path.join('../cachedir/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
 
         if int(args.input_epoch) == 0:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input)
+            self.load_model_path = os.path.join('../cachedir/models/', args.input)
         else:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input, str(args.input_epoch))
+            self.load_model_path = os.path.join('../cachedir/models/', args.input, str(args.input_epoch))
 
         n = 5
         reuse = False
@@ -120,7 +120,7 @@ def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_s
     return batch_data, batch_label
 
 def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
-    model_path = os.path.join('../../results/Cifar10/models', args.output)
+    model_path = os.path.join('../cachedir/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)
 

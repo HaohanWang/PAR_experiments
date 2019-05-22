@@ -19,14 +19,14 @@ class ResNet(object):
         self.x = tf.reshape(x, shape=[-1, 32, 32, 3])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
-        self.model_path = os.path.join('../../results/Cifar10/models/', args.output)
+        self.model_path = os.path.join('../cachedir/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
         self.lamb = tf.placeholder(tf.float32)
 
         if int(args.input_epoch) == 0:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input)
+            self.load_model_path = os.path.join('../cachedir/models/', args.input)
         else:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input, str(args.input_epoch))
+            self.load_model_path = os.path.join('../cachedir/models/', args.input, str(args.input_epoch))
 
         n = 5
         reuse = False
@@ -125,7 +125,7 @@ def generate_train_batch(args, train_data, train_labels, train_batch_size, paddi
 def train(args, Xtrain, Ytrain, Xtest, Ytest):
     num_class = 10
 
-    model_path = os.path.join('../../results/Cifar10/models', args.output)
+    model_path = os.path.join('../cachedir/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)
 
@@ -266,20 +266,15 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
-                        help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='cnn', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
     parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
     parser.add_argument('-e', '--epochs', type=int, default=500, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
-    parser.add_argument('-s', '--seed', type=int, default=0, help='random seed for generating data')
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
-    parser.add_argument('-test', '--test', type=int, default=0, help='which one to test?')
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('-d', '--dependency', type=int, default=0, help='dependent parttern or independent')
     parser.add_argument('-au', '--augmentation', type=int, default=0, help='data augmentation?')
     parser.add_argument('-alr', '--adv_learning_rate', type=float, default=1e-3, help='learning rate for adversarial learning')
     parser.add_argument('-se', '--start_epoch', type=int, default=0, help='the epoch start to adversarial training')

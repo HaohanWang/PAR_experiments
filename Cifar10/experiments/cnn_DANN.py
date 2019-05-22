@@ -21,14 +21,10 @@ class ResNet(object):
         self.x2 = tf.reshape(x2, shape=[-1, 32, 32, 3])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
-        self.model_path = os.path.join('../../results/Cifar10/models/', args.output)
+        self.model_path = os.path.join('../cachedir/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
         self.lamb = tf.placeholder(tf.float32)
-
-        if int(args.input_epoch) == 0:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input)
-        else:
-            self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input, str(args.input_epoch))
+        self.load_model_path = os.path.join('../cachedir/models/', args.input, str(args.input_epoch))
 
         n = 5
         reuse = tf.AUTO_REUSE
@@ -150,7 +146,7 @@ def generate_train_batch(args, train_data, train_data2, train_labels, train_batc
 def train(args, Xtrain, X2train, Ytrain, Xtest, Ytest):
     num_class = 10
 
-    model_path = os.path.join('../../results/Cifar10/models', args.output)
+    model_path = os.path.join('../cachedir/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)
 
@@ -297,7 +293,6 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
     parser.add_argument('-e', '--epochs', type=int, default=400, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
-    parser.add_argument('-s', '--seed', type=int, default=0, help='random seed for generating data')
     parser.add_argument('-adv', '--adv_flag', type=int, default=1, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')

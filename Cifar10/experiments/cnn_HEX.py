@@ -21,9 +21,9 @@ class ResNet(object):
         self.x_d = tf.reshape(x_d, shape=[-1, 1, 1024])
         self.y = y
         self.keep_prob = tf.placeholder(tf.float32)
-        self.model_path = os.path.join('../results/Cifar10/models/', args.output)
+        self.model_path = os.path.join('../cachedir/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
-        self.load_model_path = os.path.join('../results/Cifar10/models/', args.input, str(args.input_epoch))
+        self.load_model_path = os.path.join('../cachedir/models/', args.input, str(args.input_epoch))
 
         # --------------------------
 
@@ -162,7 +162,7 @@ def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_s
 
 def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
 
-    model_path = os.path.join('../results/Cifar10/models', args.output)
+    model_path = os.path.join('../cachedir/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)
 
@@ -246,14 +246,11 @@ def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
-                        help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='hex', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=199, help='Load model after n epochs')
     parser.add_argument("-i", "--input", type=str, default='resnet', help='Load model filepath')
     parser.add_argument('-e', '--epochs', type=int, default=400, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
-    parser.add_argument('-s', '--seed', type=int, default=0, help='random seed for generating data')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.1, help='learning rate')
     parser.add_argument('-au', '--augmentation', type=int, default=1, help='data augmentation?')
