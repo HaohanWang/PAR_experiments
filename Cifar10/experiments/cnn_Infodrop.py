@@ -117,8 +117,6 @@ def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_s
     return batch_data, batch_label
 
 def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
-    num_class = 10
-
     model_path = os.path.join('../results/Cifar10/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)

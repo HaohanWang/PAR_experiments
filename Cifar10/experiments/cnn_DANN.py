@@ -10,9 +10,9 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
-from nnutil import weight_variable, bias_variable, activation_summary
-from nnutil import conv2d, output_layer, batch_normalization_layer, conv_bn_relu_layer, residual_block
-from datautil import loadDataCifar10, whitening_image, random_crop_and_flip
+from ..util import nn_util
+from ..util import data_util
+from ..util import test_util
 
 
 class ResNet(object):
@@ -37,56 +37,56 @@ class ResNet(object):
             layers = []
             layers_2 = []
             with tf.variable_scope('conv0', reuse=reuse):
-                conv0 = conv_bn_relu_layer(self.x, [3, 3, 3, 16], 1)
-                conv0_2 = conv_bn_relu_layer(self.x2, [3, 3, 3, 16], 1)
-                activation_summary(conv0)
-                activation_summary(conv0_2)
+                conv0 = nn_util.conv_bn_relu_layer(self.x, [3, 3, 3, 16], 1)
+                conv0_2 = nn_util.conv_bn_relu_layer(self.x2, [3, 3, 3, 16], 1)
+                nn_util.activation_summary(conv0)
+                nn_util.activation_summary(conv0_2)
                 layers.append(conv0)
                 layers_2.append(conv0_2)
 
             for i in range(n):
                 with tf.variable_scope('conv1_%d' % i, reuse=reuse):
                     if i == 0:
-                        conv1 = residual_block(layers[-1], 16, first_block=True)
-                        conv1_2 = residual_block(layers_2[-1], 16, first_block=True)
+                        conv1 = nn_util.residual_block(layers[-1], 16, first_block=True)
+                        conv1_2 = nn_util.residual_block(layers_2[-1], 16, first_block=True)
                     else:
-                        conv1 = residual_block(layers[-1], 16)
-                        conv1_2 = residual_block(layers_2[-1], 16)
-                    activation_summary(conv1)
-                    activation_summary(conv1_2)
+                        conv1 = nn_util.residual_block(layers[-1], 16)
+                        conv1_2 = nn_util.residual_block(layers_2[-1], 16)
+                    nn_util.activation_summary(conv1)
+                    nn_util.activation_summary(conv1_2)
                     layers.append(conv1)
                     layers_2.append(conv1_2)
 
             for i in range(n):
                 with tf.variable_scope('conv2_%d' % i, reuse=reuse):
-                    conv2 = residual_block(layers[-1], 32)
-                    conv2_2 = residual_block(layers_2[-1], 32)
-                    activation_summary(conv2)
-                    activation_summary(conv2_2)
+                    conv2 = nn_util.residual_block(layers[-1], 32)
+                    conv2_2 = nn_util.residual_block(layers_2[-1], 32)
+                    nn_util.activation_summary(conv2)
+                    nn_util.activation_summary(conv2_2)
                     layers.append(conv2)
                     layers_2.append(conv2_2)
 
             for i in range(n):
                 with tf.variable_scope('conv3_%d' % i, reuse=reuse):
-                    self.conv3 = residual_block(layers[-1], 64)
-                    self.conv3_2 = residual_block(layers_2[-1], 64)
+                    self.conv3 = nn_util.residual_block(layers[-1], 64)
+                    self.conv3_2 = nn_util.residual_block(layers_2[-1], 64)
                     layers.append(self.conv3)
                     layers_2.append(self.conv3_2)
                 assert self.conv3.get_shape().as_list()[1:] == [8, 8, 64]
 
             with tf.variable_scope('fc', reuse=reuse):
                 in_channel = layers[-1].get_shape().as_list()[-1]
-                bn_layer = batch_normalization_layer(layers[-1], in_channel)
+                bn_layer = nn_util.batch_normalization_layer(layers[-1], in_channel)
                 relu_layer = tf.nn.relu(bn_layer)
                 global_pool = tf.reduce_mean(relu_layer, [1, 2])
 
                 in_channel_2 = layers_2[-1].get_shape().as_list()[-1]
-                bn_layer_2 = batch_normalization_layer(layers_2[-1], in_channel_2)
+                bn_layer_2 = nn_util.batch_normalization_layer(layers_2[-1], in_channel_2)
                 relu_layer_2 = tf.nn.relu(bn_layer_2)
                 global_pool_2 = tf.reduce_mean(relu_layer_2, [1, 2])
 
                 assert global_pool.get_shape().as_list()[-1:] == [64]
-                output = output_layer(global_pool, 10)
+                output = nn_util.output_layer(global_pool, 10)
                 layers.append(output)
 
         y_conv = output
@@ -102,8 +102,8 @@ class ResNet(object):
 
         if args.adv_flag:
             with tf.variable_scope('adv', reuse=reuse):
-                W_a = weight_variable([64, 2])
-                b_a = bias_variable([2])
+                W_a = nn_util.weight_variable([64, 2])
+                b_a = nn_util.bias_variable([2])
                 self.y_adv_loss = tf.matmul(global_pool, W_a) + b_a
                 self.y_adv_loss_2 = tf.matmul(global_pool_2, W_a) + b_a
 
@@ -142,8 +142,8 @@ def generate_train_batch(args, train_data, train_data2, train_labels, train_batc
     batch_data2 = train_data2[batch_ids]
 
     if args.augmentation:
-        batch_data = random_crop_and_flip(batch_data, padding_size=padding_size)
-        batch_data2 = random_crop_and_flip(batch_data2, padding_size=padding_size)
+        batch_data = data_util.random_crop_and_flip(batch_data, padding_size=padding_size)
+        batch_data2 = data_util.random_crop_and_flip(batch_data2, padding_size=padding_size)
 
     return batch_data, batch_data2, batch_label
 
@@ -292,8 +292,6 @@ def train(args, Xtrain, X2train, Ytrain, Xtest, Ytest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
-                        help='Restore training from previous model checkpoint?')
     parser.add_argument("-o", "--output", type=str, default='dann', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
     parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
@@ -315,7 +313,7 @@ if __name__ == "__main__":
 
     os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu_id
 
-    Xtrain, X2train, Ytrain, Xtest, Ytest = loadDataCifar10_DANN(args.test)
+    Xtrain, X2train, Ytrain, Xtest, Ytest = data_util.loadDataCifar10_DANN(args.test)
     if args.augmentation:
         pad_width = ((0, 0), (2, 2), (2, 2), (0, 0))
         Xtrain = np.pad(Xtrain, pad_width=pad_width, mode='constant', constant_values=0)
