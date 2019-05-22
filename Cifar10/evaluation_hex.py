@@ -1,8 +1,9 @@
 import os
+import math
 import argparse
 import numpy as np
 import tensorflow as tf
-from cnn import ResNet
+from cnn_hex import ResNet
 
 def oneHotRepresentation(y, num=10):
     r = []
@@ -12,54 +13,53 @@ def oneHotRepresentation(y, num=10):
         r.append(l)
     return np.array(r)
 
-def test_cnn(args):
-    num_class = 10
+def preparion(img, args):
+    row = args.row
+    column = args.col
+    x = np.copy(img)
+    x_d = np.copy(img)
+    x_re = np.copy(img)
 
-    data_path = '../../data/cifar10'
-    Ytest = oneHotRepresentation(np.load('../../data/cifar10/testLabel.npy').astype(int))
-    domains = ['', '_greyscale', '_negative', '_randomkernel', '_radiokernel', '_semanticadv', '_semanticadv_resnet']
+    x = x.reshape(x.shape[0], 32*32)
+    x_re = x_re.reshape(x_re.shape[0], 32*32)
+    x_d = x_d.reshape(x_d.shape[0], 32*32)
 
-    args.input_epoch = None
+    direction = np.diag((-1) * np.ones(32*32))
+    for i in range(32*32):
+        x = int(math.floor(i / 32))
+        y = int(i % 32)
+        if x + row < 32 and y + column < 32:
+            direction[i][i + row * 32 + column] = 1
 
-    for i in range(10):
-        tf.reset_default_graph()
-        args.input_epoch = (i+1)*5-1
-        x = tf.placeholder(tf.float32, (None, 32, 32, 3))
-        y = tf.placeholder(tf.float32, (None, num_class))
-        model = ResNet(x, y, args)
-        with tf.Session() as sess:
-            print('Starting Evaluation')
-            sess.run(tf.global_variables_initializer())
-            model.load_initial_weights(sess)
+    for i in range(x_re.shape[0]):
+        x_re[i] = np.asarray(1.0 * x_re[i] * (args.ngray - 1) / x_re[i].max(), dtype=np.float32)
+        x_d[i] = np.dot(x_re[i], direction)
+    return x_d, x_re
 
-            for domain in domains:
-                test_file_path = os.path.join(data_path, 'testData%s.npy'%(domain))
-                Xtest = np.load(test_file_path)
-                test_num_batches = Xtest.shape[0] // args.batch_size
+def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_size, i):
+    batch_data = test_data[i*test_batch_size:(i+1)*test_batch_size, :]
+    batch_label = test_labels[i*test_batch_size:(i+1)*test_batch_size, :]
 
-                test_accuracies = []
-                for i in range(test_num_batches):
-                    batch_x = Xtest[i * args.batch_size:(i + 1) * args.batch_size, :]
-                    batch_y = Ytest[i * args.batch_size:(i + 1) * args.batch_size, :]
-                    acc = sess.run(model.accuracy, feed_dict={x: batch_x, y: batch_y, model.keep_prob: 1.0})
-                    test_accuracies.append(acc)
-                score = np.mean(test_accuracies)
-                print("Mean Accuracy of %s at epoch %d on %s Test Dataset = %.4f " % (args.input, args.input_epoch, domain, score))
+    gray=np.dot(batch_data[...,:3], [0.2989, 0.5870, 0.1140])
 
+    return batch_data, batch_label, gray
 
 def test(args):
     num_class = 10
 
     data_path = '../../data/cifar10'
     Ytest = oneHotRepresentation(np.load('../../data/cifar10/testLabel.npy').astype(int))
-    domains = ['', '_greyscale', '_negative', '_randomkernel', '_radiokernel', '_semanticadv', '_semanticadv_resnet']
+    domains = ['_randomkernel']
+    # domains = ['', '_greyscale', '_negative', '_randomkernel', '_radiokernel', '_semanticadv', '_semanticadv_resnet']
 
     for i in range(20):
         tf.reset_default_graph()
         args.input_epoch = (i+1)*5-1
         x = tf.placeholder(tf.float32, (None, 32, 32, 3))
         y = tf.placeholder(tf.float32, (None, num_class))
-        model = ResNet(x, y, args)
+        x_re = tf.placeholder(tf.float32, (None, 32 * 32))
+        x_d = tf.placeholder(tf.float32, (None, 32 * 32))
+        model = ResNet(x, y, x_re, x_d, args, Hex_flag=True)
         with tf.Session() as sess:
             print('Starting Evaluation')
             sess.run(tf.global_variables_initializer())
@@ -72,10 +72,15 @@ def test(args):
 
                 test_accuracies = []
                 for i in range(test_num_batches):
-                    batch_x = Xtest[i * args.batch_size:(i + 1) * args.batch_size, :]
-                    batch_y = Ytest[i * args.batch_size:(i + 1) * args.batch_size, :]
-                    acc = sess.run(model.accuracy, feed_dict={x: batch_x, y: batch_y, model.keep_prob: 1.0})
+                    batch_x, batch_y, img_batch = generate_test_batch(args, Xtest, Ytest, args.batch_size, 2, i)
+                    batch_xd, batch_re = preparion(img_batch, args)
+                    p, acc = sess.run([model.pred, model.accuracy], feed_dict={x: batch_x, 
+                                                            x_re: batch_re,
+                                                            x_d: batch_xd, 
+                                                            y: batch_y, 
+                                                            model.keep_prob: 1.0})
                     test_accuracies.append(acc)
+                    print(p[:10])
                 score = np.mean(test_accuracies)
                 print("Mean Accuracy of epoch %d on %s Test Dataset = %.4f " % (int(args.input_epoch), domain, score))
 
@@ -94,6 +99,9 @@ if __name__ == "__main__":
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
+    parser.add_argument('-row', '--row', type=int, default=0, help='direction delta in row')
+    parser.add_argument('-col', '--col', type=int, default=0, help='direction delta in column')
+    parser.add_argument('-ng', '--ngray', type=int, default=16, help='regularization gray level')
 
     args = parser.parse_args()
 

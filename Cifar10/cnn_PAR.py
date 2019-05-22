@@ -6,7 +6,6 @@ import os
 import cv2
 import sys
 import csv
-import math
 import time
 import json
 import argparse
@@ -18,6 +17,7 @@ import numpy as np
 import tensorflow as tf
 
 from dataLoader import loadDataCifar10_2
+
 
 def weight_variable(shape):
     initializer = tf.truncated_normal_initializer(dtype=tf.float32, stddev=5e-2)
@@ -190,6 +190,7 @@ class ResNet(object):
         self.keep_prob = tf.placeholder(tf.float32)
         self.model_path = os.path.join('../../results/Cifar10/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
+        self.lamb = tf.placeholder(tf.float32)
 
         if int(args.input_epoch) == 0:
             self.load_model_path = os.path.join('../../results/Cifar10/models/', args.input)
@@ -235,14 +236,6 @@ class ResNet(object):
                     layers.append(conv3)
                 assert conv3.get_shape().as_list()[1:] == [8, 8, 64]
 
-            in_channel = layers[-1].get_shape().as_list()[-1]
-            bn_layer = batch_normalization_layer(layers[-1], in_channel)
-            relu_layer = tf.nn.relu(bn_layer)
-            # B x 64
-            global_pool = tf.reduce_mean(relu_layer, [1, 2])
-            assert global_pool.get_shape().as_list()[-1:] == [64]
-
-            
             with tf.variable_scope('fc', reuse=reuse):
                 in_channel = layers[-1].get_shape().as_list()[-1]
                 bn_layer = batch_normalization_layer(layers[-1], in_channel)
@@ -264,7 +257,28 @@ class ResNet(object):
         self.correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(self.y, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
-        self.optimizer = tf.train.MomentumOptimizer(self.learning_rate, momentum=0.9).minimize(self.loss)
+        if args.adv_flag:
+            [_, m, n, d] = conv0.shape
+            with tf.variable_scope('adv'):
+                W_a = weight_variable([1, 1, d, 10])
+                b_a = bias_variable([10])
+            y_adv_loss = conv2d(conv0, W_a) + b_a
+            ty = tf.reshape(self.y, [-1, 1, 1, 10])
+            my = tf.tile(ty, [1, m, n, 1])
+            self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
+            self.adv_acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, -1), tf.argmax(my, -1)), tf.float32))
+
+            self.loss -= self.lamb * self.adv_loss
+
+        optimizer = tf.train.MomentumOptimizer(self.learning_rate, momentum=0.9)
+        # optimizer = tf.train.AdamOptimizer(self.learning_rate)
+        first_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "cnn")
+        self.first_train_op = optimizer.minimize(self.loss, var_list=first_train_vars)
+
+        if args.adv_flag:
+            optimizer_adv = tf.train.AdamOptimizer(args.adv_learning_rate)
+            second_train_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, "adv")
+            self.second_train_op = optimizer_adv.minimize(self.adv_loss, var_list=second_train_vars)
 
     def load_initial_weights(self, session):
         for v in tf.trainable_variables():
@@ -324,6 +338,7 @@ def random_crop_and_flip(batch_data, padding_size):
 
     return cropped_batch
 
+
 def generate_train_batch(args, train_data, train_labels, train_batch_size, padding_size, i):
     '''
     This function helps generate a batch of train data, and random crop, horizontally flip
@@ -335,16 +350,6 @@ def generate_train_batch(args, train_data, train_labels, train_batch_size, paddi
     '''
     batch_data = train_data[i*train_batch_size:(i+1)*train_batch_size, :]
     batch_label = train_labels[i*train_batch_size:(i+1)*train_batch_size, :]
-
-    if args.augmentation:
-        batch_data = random_crop_and_flip(batch_data, padding_size=padding_size)
-        # batch_data = whitening_image(batch_data)
-
-    return batch_data, batch_label
-
-def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_size, i):
-    batch_data = test_data[i*test_batch_size:(i+1)*test_batch_size, :]
-    batch_label = test_labels[i*test_batch_size:(i+1)*test_batch_size, :]
 
     if args.augmentation:
         batch_data = random_crop_and_flip(batch_data, padding_size=padding_size)
@@ -387,6 +392,8 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
             # train
             train_accuracies = []
             losses = []
+            advs = []
+            adv_loss = 0
 
             # update the learning rate!
             if epoch == 100 or epoch == 150 or epoch == 200:
@@ -394,33 +401,90 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
                 print('Learning rate decayed to %.4f'%args.learning_rate)
 
             for i in range(num_batches):
-                batch_x, batch_y,  = generate_train_batch(args, Xtrain, Ytrain, args.batch_size, 2, i)
+                batch_x, batch_y = generate_train_batch(args, Xtrain, Ytrain, args.batch_size, 2, i)
 
-                _, acc, loss = sess.run([model.optimizer, model.accuracy, model.loss], feed_dict={x: batch_x,
-                                                                                            y: batch_y,
-                                                                                            model.keep_prob: 0.5,
-                                                                                            model.learning_rate: args.learning_rate})
+                if epoch < args.start_epoch:
+                    _, acc, loss = sess.run([model.first_train_op, model.accuracy, model.loss],
+                                            feed_dict={x: batch_x, 
+                                            y: batch_y, 
+                                            model.keep_prob: 0.5, 
+                                            model.learning_rate: args.learning_rate,
+                                            model.lamb: 0})
+                else:
+                    _, acc, loss = sess.run([model.first_train_op, model.accuracy, model.loss],
+                                            feed_dict={x: batch_x, 
+                                            y: batch_y, 
+                                            model.keep_prob: 0.5, 
+                                            model.learning_rate: args.learning_rate,
+                                            model.lamb: args.lam})
+                if args.adv_flag:
+                    _, adv_loss = sess.run([model.second_train_op, model.adv_loss],
+                                           feed_dict={x: batch_x, 
+                                           y: batch_y, 
+                                           model.keep_prob: 0.5, 
+                                           model.learning_rate: args.learning_rate})
+
 
                 train_accuracies.append(acc)
                 losses.append(loss)
+                advs.append(adv_loss)
 
             train_acc_mean = np.mean(train_accuracies)
             train_loss_mean = np.mean(losses)
+            adv_loss_mean = np.mean(advs)
 
-            print("Epoch %d, time = %ds, train accuracy = %.4f, train_loss_mean=%.4f, adv_loss = %.4f" % (
-                epoch, time.time() - begin, train_acc_mean, train_loss_mean, adv_loss_mean))
+            # print ()
+
+            # compute loss over validation data
+            if validation:
+                val_num_batches = Xval.shape[0] // args.batch_size
+                val_accuracies = []
+                for i in range(val_num_batches):
+                    batch_x = Xval[i * args.batch_size:(i + 1) * args.batch_size, :]
+                    batch_y = Yval[i * args.batch_size:(i + 1) * args.batch_size, :]
+                    acc = sess.run(model.accuracy, feed_dict={x: batch_x, 
+                                                                y: batch_y, 
+                                                                model.keep_prob: 1.0,
+                                                                model.learning_rate: args.learning_rate})
+                    val_accuracies.append(acc)
+                val_acc_mean = np.mean(val_accuracies)
+
+                # log progress to console
+                print("Epoch %d, time = %ds, train loss = %.4f, adv_loss = %.4f, train accuracy = %.4f, validation accuracy = %.4f" % (
+                epoch, time.time() - begin, train_loss_mean, adv_loss_mean, train_acc_mean, val_acc_mean))
+            else:
+                print("Epoch %d, time = %ds, train accuracy = %.4f, train_loss_mean=%.4f, adv_loss = %.4f" % (
+                    epoch, time.time() - begin, train_acc_mean, train_loss_mean, adv_loss_mean))
             sys.stdout.flush()
 
-            if (epoch+1)%5==0:
+            if validation and val_acc_mean > best_validate_accuracy:
+                best_validate_accuracy = val_acc_mean
+
                 test_accuracies = []
                 for i in range(test_num_batches):
-                    batch_x, batch_y = generate_test_batch(args, Xtest, Ytest, args.batch_size, 2, i)
-
-                    acc = sess.run(model.accuracy, feed_dict={x: batch_x,
+                    batch_x = Xtest[i * args.batch_size:(i + 1) * args.batch_size, :]
+                    batch_y = Ytest[i * args.batch_size:(i + 1) * args.batch_size, :]
+                    acc = sess.run(model.accuracy, feed_dict={x: batch_x, 
                                                                 y: batch_y,
                                                                 model.keep_prob: 1.0,
                                                                 model.learning_rate: args.learning_rate})
+                    test_accuracies.append(acc)
+                score = np.mean(test_accuracies)
 
+                print("Best Validated Model Prediction Accuracy = %.4f " % (score))
+
+                for v in tf.trainable_variables():
+                    vname = v.name.replace('/', '_')
+                    np.save(model_path+'/' + vname, v.eval())
+            if (epoch+1)%5==0:
+                test_accuracies = []
+                for i in range(test_num_batches):
+                    batch_x = Xtest[i * args.batch_size:(i + 1) * args.batch_size, :]
+                    batch_y = Ytest[i * args.batch_size:(i + 1) * args.batch_size, :]
+                    acc = sess.run(model.accuracy, feed_dict={x: batch_x, 
+                                                                y: batch_y,
+                                                                model.keep_prob: 1.0,
+                                                                model.learning_rate: args.learning_rate})
                     test_accuracies.append(acc)
 
                 score = np.mean(test_accuracies)
@@ -439,22 +503,29 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
                         help='Restore training from previous model checkpoint?')
-    parser.add_argument("-o", "--output", type=str, default='hex', help='Save model filepath')
+    parser.add_argument("-o", "--output", type=str, default='cnn', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
     parser.add_argument("-i", "--input", type=str, default='haohancnn', help='Load model filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=400, help='How many epochs to run in total?')
+    parser.add_argument('-e', '--epochs', type=int, default=500, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
     parser.add_argument('-s', '--seed', type=int, default=0, help='random seed for generating data')
+    parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
+    parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
-    parser.add_argument('-lr', '--learning_rate', type=float, default=0.1, help='learning rate')
-    parser.add_argument('-au', '--augmentation', type=int, default=1, help='data augmentation?')
+    parser.add_argument('-test', '--test', type=int, default=0, help='which one to test?')
+    parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4, help='learning rate')
+    parser.add_argument('-d', '--dependency', type=int, default=0, help='dependent parttern or independent')
+    parser.add_argument('-au', '--augmentation', type=int, default=0, help='data augmentation?')
+    parser.add_argument('-alr', '--adv_learning_rate', type=float, default=1e-3, help='learning rate for adversarial learning')
+    parser.add_argument('-se', '--start_epoch', type=int, default=0, help='the epoch start to adversarial training')
+
     args = parser.parse_args()
 
     print(args)
 
     os.environ["CUDA_VISIBLE_DEVICES"]=args.gpu_id
 
-    Xtrain,Ytrain, Xtest, Ytest = loadDataCifar10_2()
+    Xtrain, Ytrain, Xtest, Ytest = loadDataCifar10_2()
     if args.augmentation:
         # Xtest = whitening_image(Xtest)
         pad_width = ((0, 0), (2, 2), (2, 2), (0, 0))

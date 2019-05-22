@@ -19,6 +19,11 @@ import tensorflow as tf
 
 from dataLoader import loadDataCifar10_2
 
+def sample_lognormal(mean, sigma=None, sigma0=1.):
+    '''Samples a log-normal using the reparametrization trick'''
+    e = tf.random_normal(tf.shape(mean), mean=0., stddev=1.)
+    return tf.exp(mean + sigma * sigma0 * e)
+
 def weight_variable(shape):
     initializer = tf.truncated_normal_initializer(dtype=tf.float32, stddev=5e-2)
     return tf.get_variable("weights", shape, initializer=initializer, dtype=tf.float32)
@@ -235,13 +240,6 @@ class ResNet(object):
                     layers.append(conv3)
                 assert conv3.get_shape().as_list()[1:] == [8, 8, 64]
 
-            in_channel = layers[-1].get_shape().as_list()[-1]
-            bn_layer = batch_normalization_layer(layers[-1], in_channel)
-            relu_layer = tf.nn.relu(bn_layer)
-            # B x 64
-            global_pool = tf.reduce_mean(relu_layer, [1, 2])
-            assert global_pool.get_shape().as_list()[-1:] == [64]
-
             
             with tf.variable_scope('fc', reuse=reuse):
                 in_channel = layers[-1].get_shape().as_list()[-1]
@@ -249,17 +247,29 @@ class ResNet(object):
                 relu_layer = tf.nn.relu(bn_layer)
                 global_pool = tf.reduce_mean(relu_layer, [1, 2])
 
-                assert global_pool.get_shape().as_list()[-1:] == [64]
-                output = output_layer(global_pool, 10)
+                # h_fc1_drop = tf.nn.dropout(global_pool, self.keep_prob)
+
+            with tf.variable_scope('infodrop', reuse=reuse):
+                in_channel_id = layers[-1].get_shape().as_list()[-1]
+                bn_layer_id = batch_normalization_layer(layers[-1], in_channel_id)
+                sigmoid_layer_id = tf.sigmoid(bn_layer_id)
+                global_pool_id = tf.reduce_mean(sigmoid_layer_id, [1, 2])
+
+                self.alpha = 0.001 + 0.7 * global_pool_id
+                e = sample_lognormal(mean=tf.zeros_like(global_pool_id), sigma = self.alpha, sigma0 = 1.0)
+                h_fc1_drop = global_pool*e
+                
+                assert h_fc1_drop.get_shape().as_list()[-1:] == [64]
+                output = output_layer(h_fc1_drop, 10)
                 layers.append(output)
 
         y_conv = output
 
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_conv))
         self.pred = tf.argmax(y_conv, 1)
-
+        
         regu_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-        self.loss = tf.add_n([self.loss] + regu_losses)
+        self.loss += tf.reduce_mean(tf.reduce_sum(-0.3*tf.log(self.alpha/(0.7 + 0.001)), -1))
 
         self.correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(self.y, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
@@ -346,10 +356,6 @@ def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_s
     batch_data = test_data[i*test_batch_size:(i+1)*test_batch_size, :]
     batch_label = test_labels[i*test_batch_size:(i+1)*test_batch_size, :]
 
-    if args.augmentation:
-        batch_data = random_crop_and_flip(batch_data, padding_size=padding_size)
-        # batch_data = whitening_image(batch_data)
-
     return batch_data, batch_label
 
 def train(args, Xtrain, Ytrain, Xtest, Ytest):
@@ -396,19 +402,20 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
             for i in range(num_batches):
                 batch_x, batch_y,  = generate_train_batch(args, Xtrain, Ytrain, args.batch_size, 2, i)
 
-                _, acc, loss = sess.run([model.optimizer, model.accuracy, model.loss], feed_dict={x: batch_x,
+                _, acc, loss, a = sess.run([model.optimizer, model.accuracy, model.loss, model.alpha], feed_dict={x: batch_x,
                                                                                             y: batch_y,
                                                                                             model.keep_prob: 0.5,
                                                                                             model.learning_rate: args.learning_rate})
 
+                # print(a[:10])
                 train_accuracies.append(acc)
                 losses.append(loss)
 
             train_acc_mean = np.mean(train_accuracies)
             train_loss_mean = np.mean(losses)
 
-            print("Epoch %d, time = %ds, train accuracy = %.4f, train_loss_mean=%.4f, adv_loss = %.4f" % (
-                epoch, time.time() - begin, train_acc_mean, train_loss_mean, adv_loss_mean))
+            print("Epoch %d, time = %ds, train accuracy = %.4f, train_loss_mean=%.4f" % (
+                epoch, time.time() - begin, train_acc_mean, train_loss_mean))
             sys.stdout.flush()
 
             if (epoch+1)%5==0:
@@ -439,7 +446,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--load_params', dest='load_params', action='store_true',
                         help='Restore training from previous model checkpoint?')
-    parser.add_argument("-o", "--output", type=str, default='hex', help='Save model filepath')
+    parser.add_argument("-o", "--output", type=str, default='infodrop', help='Save model filepath')
     parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
     parser.add_argument("-i", "--input", type=str, default='haohancnn', help='Load model filepath')
     parser.add_argument('-e', '--epochs', type=int, default=400, help='How many epochs to run in total?')
