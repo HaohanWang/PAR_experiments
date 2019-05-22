@@ -20,8 +20,8 @@ pip install -r requirements.txt
 1. Download Cifar10 images:
 ```
 cd data/
-wget https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz
-tar -vzxf cifar-100-python.tar.gz
+wget https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+tar -vzxf cifar-10-python.tar.gz
 ```
 
 2. Process the Cifar10 images to add perturbation:
