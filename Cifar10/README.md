@@ -37,12 +37,12 @@ cd ..
 mkdir cachedir/
 mkdir cachedir/logs
 mkdir cachedir/models
-python cnn.py
-python cnn_HEX.py
-python cnn_InfoDrop.py
-python cnn_DANN.py -test 0
-python cnn_DANN.py -test 1
-python cnn_DANN.py -test 2
-python cnn_DANN.py -test 3
-python cnn_PAR.py
+python cnn.py > cachedir/logs/cnn.txt
+python cnn_HEX.py > cachedir/logs/cnn_HEX.txt
+python cnn_InfoDrop.py > cachedir/logs/cnn_InfoDrop.txt
+python cnn_DANN.py -test 0 > cachedir/logs/cnn_DANN_gs.txt
+python cnn_DANN.py -test 1 > cachedir/logs/cnn_DANN_ng.txt
+python cnn_DANN.py -test 2 > cachedir/logs/cnn_DANN_ro.txt
+python cnn_DANN.py -test 3 > cachedir/logs/cnn_DANN_rm.txt
+python cnn_PAR.py > cachedir/logs/cnn_PAR.txt
 ```
