@@ -9,7 +9,7 @@ Anonymous Author(s)\*</sup>
 ## Patch-wise Adversarial Regularization (PAR)
 <img src="./PAR.jpg" width = "800px" />
 
-we introduced the patch-wise adversarial regularization (PAR) that regularizes the model to focus on global concept of the depicted objects in training data by penalizing the model’s predictive power through local patches. To attest the effectiveness of our model, we verify it on a variety of domain adaptation/generalization settings, including perturbed [MNIST](http://yann.lecun.com/exdb/mnist/), perturbed [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html), [PACS](http://www.eecs.qmul.ac.uk/~dl307/project_iccv2017) and a novel large-scale domain generalization dataset ImageNet-Sketch. Please refer to each experiment folder for codes to reproduce the benchmark mentioned in our paper.
+We introduced the patch-wise adversarial regularization (PAR) that regularizes the model to focus on global concept of the depicted objects in training data by penalizing the model’s predictive power through local patches. To attest the effectiveness of our model, we verify it on a variety of domain adaptation/generalization settings, including perturbed [MNIST](http://yann.lecun.com/exdb/mnist/), perturbed [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html), [PACS](http://www.eecs.qmul.ac.uk/~dl307/project_iccv2017) and a novel large-scale domain generalization dataset ImageNet-Sketch. Please refer to each experiment folder for codes to reproduce the benchmark mentioned in our paper.
 
 ## ImageNet-Sketch Dataset
 
