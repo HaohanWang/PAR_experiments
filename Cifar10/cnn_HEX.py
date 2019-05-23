@@ -134,7 +134,6 @@ class ResNet(object):
     def load_initial_weights(self, session):
         for v in tf.trainable_variables():
             saveName = v.name.replace('/', '_')
-            print(saveName)
             if saveName.startswith('fc2') and self.args.input=='HEX':
                 data = np.load(self.load_model_path + '/fc2_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))

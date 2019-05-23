@@ -154,7 +154,7 @@ def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
             for i in range(num_batches):
                 batch_x, batch_y,  = generate_train_batch(args, Xtrain, Ytrain, args.batch_size, 2, i)
 
-                _, acc, loss = sess.run([model.optimizer, model.accuracy, model.loss, feed_dict={x: batch_x,
+                _, acc, loss = sess.run([model.optimizer, model.accuracy, model.loss], feed_dict={x: batch_x,
                                                                                             y: batch_y,
                                                                                             model.keep_prob: 0.5,
                                                                                             model.learning_rate: args.learning_rate})
