@@ -10,23 +10,24 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
-from ..util import nn_util
-from ..util import data_util
-from ..util import test_util
+from util import nn_util
+from util import data_util
+from util import test_util
 
 class ResNet(object):
     def __init__(self, x, y, args):
         self.x = tf.reshape(x, shape=[-1, 32, 32, 3])
         self.y = y
+        self.args = args
         self.keep_prob = tf.placeholder(tf.float32)
-        self.model_path = os.path.join('../cachedir/models/', args.output)
+        self.model_path = os.path.join('cachedir/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
         self.lamb = tf.placeholder(tf.float32)
 
         if int(args.input_epoch) == 0:
-            self.load_model_path = os.path.join('../cachedir/models/', args.input)
+            self.load_model_path = os.path.join('cachedir/models/', args.input)
         else:
-            self.load_model_path = os.path.join('../cachedir/models/', args.input, str(args.input_epoch))
+            self.load_model_path = os.path.join('cachedir/models/', args.input, str(args.input_epoch))
 
         n = 5
         reuse = False
@@ -108,7 +109,7 @@ class ResNet(object):
             if saveName.startswith('cnn'):
                 data = np.load(self.load_model_path + '/cnn_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
-            elif self.args.input != 'ResNet' and saveName.startswith('adv'):
+            elif self.args.input == 'PAR' and saveName.startswith('adv'):
                 data = np.load(self.load_model_path + '/adv_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
 
@@ -122,21 +123,14 @@ def generate_train_batch(args, train_data, train_labels, train_batch_size, paddi
 
     return batch_data, batch_label
 
-def train(args, Xtrain, Ytrain, Xtest, Ytest):
-    num_class = 10
-
-    model_path = os.path.join('../cachedir/models', args.output)
+def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
+    model_path = os.path.join('cachedir/models', args.output)
     if not os.path.exists(model_path):
         os.mkdir(model_path)
-
-    x = tf.placeholder(tf.float32, (None, 32, 32, 3))
-    y = tf.placeholder(tf.float32, (None, num_class))
-    model = ResNet(x, y, args)
 
     with tf.Session() as sess:
         print('Starting training')
         sess.run(tf.global_variables_initializer())
-        # model.load_initial_weights(sess)
         num_batches = Xtrain.shape[0] // args.batch_size
 
         validation = False
@@ -197,8 +191,6 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
             train_acc_mean = np.mean(train_accuracies)
             train_loss_mean = np.mean(losses)
             adv_loss_mean = np.mean(advs)
-
-            # print ()
 
             # compute loss over validation data
             if validation:
@@ -266,18 +258,18 @@ def train(args, Xtrain, Ytrain, Xtest, Ytest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--output", type=str, default='cnn', help='Save model filepath')
-    parser.add_argument("-ie", "--input_epoch", type=str, default=0, help='Load model after n epochs')
-    parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=500, help='How many epochs to run in total?')
+    parser.add_argument("-o", "--output", type=str, default='PAR', help='Save model filepath')
+    parser.add_argument("-ie", "--input_epoch", type=str, default=399, help='Load model after n epochs')
+    parser.add_argument("-i", "--input", type=str, default='PAR', help='Load model filepath')
+    parser.add_argument('-e', '--epochs', type=int, default=400, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
-    parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
+    parser.add_argument('-adv', '--adv_flag', type=int, default=1, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
-    parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('-au', '--augmentation', type=int, default=0, help='data augmentation?')
+    parser.add_argument('-lr', '--learning_rate', type=float, default=0.1, help='learning rate')
+    parser.add_argument('-au', '--augmentation', type=int, default=1, help='data augmentation?')
     parser.add_argument('-alr', '--adv_learning_rate', type=float, default=1e-3, help='learning rate for adversarial learning')
-    parser.add_argument('-se', '--start_epoch', type=int, default=0, help='the epoch start to adversarial training')
+    parser.add_argument('-se', '--start_epoch', type=int, default=250, help='the epoch start to adversarial training')
 
     args = parser.parse_args()
 
@@ -290,5 +282,11 @@ if __name__ == "__main__":
         pad_width = ((0, 0), (2, 2), (2, 2), (0, 0))
         Xtrain = np.pad(Xtrain, pad_width=pad_width, mode='constant', constant_values=0)
 
-    print(Xtrain.shape, Xtest.shape)
-    train(args, Xtrain, Ytrain, Xtest, Ytest)
+    num_class = 10
+    
+    x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+    y = tf.placeholder(tf.float32, (None, num_class))
+    model = ResNet(x, y, args)
+    
+    train(args, model, Xtrain, Ytrain, Xtest, Ytest)
+    test_util.test(args, ResNet)

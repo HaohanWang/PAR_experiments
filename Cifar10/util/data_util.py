@@ -1,4 +1,5 @@
 import cv2
+import math
 import numpy as np
 
 def horizontal_flip(image, axis):
@@ -43,35 +44,35 @@ def oneHotRepresentation(y, num=10):
     return np.array(r)
 
 def loadDataCifar10():
-    Xtrain = np.load('../data/trainData.npy').astype(np.float)
-    Ytrain = np.load('../data/trainLabel.npy').astype(int)
-    Xtest = np.load('../data/testData.npy').astype(np.float)
-    Ytest = np.load('../data/testLabel.npy').astype(int)
+    Xtrain = np.load('data/trainData.npy').astype(np.float)
+    Ytrain = np.load('data/trainLabel.npy').astype(int)
+    Xtest = np.load('data/testData.npy').astype(np.float)
+    Ytest = np.load('data/testLabel.npy').astype(int)
 
     # padding for data augmentation
     return Xtrain, oneHotRepresentation(Ytrain), Xtest, oneHotRepresentation(Ytest)
 
 def loadDataCifar10_DANN(case):
-    Xtrain = np.load('../data/trainData.npy').astype(np.float)
-    Ytrain = np.load('../data/trainLabel.npy').astype(int)
-    Ytest = np.load('../data/testLabel.npy').astype(int)
+    Xtrain = np.load('data/trainData.npy').astype(np.float)
+    Ytrain = np.load('data/trainLabel.npy').astype(int)
+    Ytest = np.load('data/testLabel.npy').astype(int)
     if case == 0:
-        Xtrain2 = np.load('../data/testData_greyscale.npy').astype(np.float)
-        Xtest = np.load('../data/testData_greyscale.npy').astype(np.float)
+        Xtrain2 = np.load('data/testData_greyscale.npy').astype(np.float)
+        Xtest = np.load('data/testData_greyscale.npy').astype(np.float)
     elif case == 1:
-        Xtrain2 = np.load('../data/testData_negative.npy').astype(np.float)
-        Xtest = np.load('../data/testData_negative.npy').astype(np.float)
+        Xtrain2 = np.load('data/testData_negative.npy').astype(np.float)
+        Xtest = np.load('data/testData_negative.npy').astype(np.float)
     elif case == 2:
-        Xtrain2 = np.load('../data/testData_randomkernel.npy').astype(np.float)
-        Xtest = np.load('../data/testData_randomkernel.npy').astype(np.float)
+        Xtrain2 = np.load('data/testData_randomkernel.npy').astype(np.float)
+        Xtest = np.load('data/testData_randomkernel.npy').astype(np.float)
     elif case == 3:
-        Xtrain2 = np.load('../data/testData_radiokernel.npy').astype(np.float)
-        Xtest = np.load('../data/testData_radiokernel.npy').astype(np.float)
+        Xtrain2 = np.load('data/testData_radiokernel.npy').astype(np.float)
+        Xtest = np.load('data/testData_radiokernel.npy').astype(np.float)
 
     # padding for data augmentation
     return Xtrain, Xtrain2, oneHotRepresentation(Ytrain), Xtest, oneHotRepresentation(Ytest)
 
-def preparion(img, args):
+def prepare(img, args):
     row = args.row
     column = args.col
     x = np.copy(img)

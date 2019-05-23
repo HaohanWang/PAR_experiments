@@ -148,4 +148,4 @@ if __name__ == '__main__':
     rm_data = np.zeros(testX.shape, dtype=np.float32)
     for i in range(testX.shape[0]):
         rm_data[i] = addingPattern(testX[i].astype(np.float32), np.abs(randomMask))
-    np.save('testData_randomkernel.npy', ro_data)
+    np.save('testData_randomkernel.npy', rm_data)

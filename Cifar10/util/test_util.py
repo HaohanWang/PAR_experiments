@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
-from data_util import prepare
+from .data_util import prepare
 
 def oneHotRepresentation(y, num=10):
     r = []
@@ -21,52 +21,50 @@ def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_s
     return batch_data, batch_label, gray
 
 
-def test(args, model):
+def test(args, model_class):
     num_class = 10
-
-    data_path = '../data/cifar10'
-    Ytest = oneHotRepresentation(np.load('../data/cifar10/testLabel.npy').astype(int))
-    domains = ['_greyscale', '_negative', '_randomkernel', '_radiokernel']
-
+    data_path = 'data/'
     tf.reset_default_graph()
-    args.input = args.output
-    args.input_epoch = 399
+    Ytest = oneHotRepresentation(np.load('data/testLabel.npy').astype(int))
+    domains = ['_greyscale', '_negative', '_randomkernel', '_radiokernel']
     x = tf.placeholder(tf.float32, (None, 32, 32, 3))
+    x2 = tf.placeholder(tf.float32, (None, 32, 32, 3))
     y = tf.placeholder(tf.float32, (None, num_class))
+    if args.input == 'dann':
+        model = model_class(x, x2, y, args)
+    else:
+        model = model_class(x, y, args)
     with tf.Session() as sess:
         print('Starting Evaluation')
         sess.run(tf.global_variables_initializer())
         model.load_initial_weights(sess)
-
         for domain in domains:
             test_file_path = os.path.join(data_path, 'testData%s.npy'%(domain))
             Xtest = np.load(test_file_path)
             test_num_batches = Xtest.shape[0] // args.batch_size
-
             test_accuracies = []
             for i in range(test_num_batches):
                 batch_x = Xtest[i * args.batch_size:(i + 1) * args.batch_size, :]
                 batch_y = Ytest[i * args.batch_size:(i + 1) * args.batch_size, :]
-                acc = sess.run(model.accuracy, feed_dict={x: batch_x, y: batch_y, model.keep_prob: 1.0})
+                acc = sess.run(model.accuracy, feed_dict={model.x: batch_x, model.y: batch_y})
                 test_accuracies.append(acc)
             score = np.mean(test_accuracies)
             print("Mean Accuracy of epoch %d on %s Test Dataset = %.4f " % (int(args.input_epoch), domain, score))
 
 
-def test_HEX(args):
+def test_HEX(args, model_class):
     num_class = 10
-
-    data_path = '../../data/cifar10'
-    Ytest = oneHotRepresentation(np.load('../../data/cifar10/testLabel.npy').astype(int))
+    data_path = 'data/'
+    Ytest = oneHotRepresentation(np.load('data/testLabel.npy').astype(int))
     domains = ['_greyscale', '_negative', '_randomkernel', '_radiokernel']
-
     tf.reset_default_graph()
     args.input = args.output
-    args.input_epoch = 399
+    args.input_epoch = 99
     x = tf.placeholder(tf.float32, (None, 32, 32, 3))
     y = tf.placeholder(tf.float32, (None, num_class))
     x_re = tf.placeholder(tf.float32, (None, 32 * 32))
     x_d = tf.placeholder(tf.float32, (None, 32 * 32))
+    model = model_class(x, y, x_re, x_d, args, Hex_flag=True)
     with tf.Session() as sess:
         print('Starting Evaluation')
         sess.run(tf.global_variables_initializer())
