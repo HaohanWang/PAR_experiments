@@ -20,8 +20,8 @@ pip install -r requirements.txt
 1. Download Cifar10 images:
 ```
 cd data/
-wget https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz
-tar -vzxf cifar-100-python.tar.gz
+wget https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
+tar -vzxf cifar-10-python.tar.gz
 ```
 
 2. Process the Cifar10 images to add perturbation:
@@ -33,13 +33,16 @@ python generate_data.py
 ### Model training and evaluation
 Reproduce teh results of PAR and competing models. Note that for DANN we need to indicate the test domain.
 ```
-cd experiments/
-python cnn.py
-python cnn_HEX.py
-python cnn_InfoDrop.py
-python cnn_DANN.py -test 0
-python cnn_DANN.py -test 1
-python cnn_DANN.py -test 2
-python cnn_DANN.py -test 3
-python cnn_PAR.py
+cd ..
+mkdir cachedir/
+mkdir cachedir/logs
+mkdir cachedir/models
+python cnn.py > cachedir/logs/cnn.txt
+python cnn_HEX.py > cachedir/logs/cnn_HEX.txt
+python cnn_InfoDrop.py > cachedir/logs/cnn_InfoDrop.txt
+python cnn_DANN.py -test 0 > cachedir/logs/cnn_DANN_gs.txt
+python cnn_DANN.py -test 1 > cachedir/logs/cnn_DANN_ng.txt
+python cnn_DANN.py -test 2 > cachedir/logs/cnn_DANN_ro.txt
+python cnn_DANN.py -test 3 > cachedir/logs/cnn_DANN_rm.txt
+python cnn_PAR.py > cachedir/logs/cnn_PAR.txt
 ```
