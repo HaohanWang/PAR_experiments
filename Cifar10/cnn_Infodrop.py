@@ -222,4 +222,4 @@ if __name__ == "__main__":
     model = ResNet(x, y, args)
 
     train(args, model, Xtrain, Ytrain, Xtest, Ytest)
-    test_util.test(args, model)
+    test_util.test(args, ResNet)
