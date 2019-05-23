@@ -9,7 +9,20 @@ Anonymous Author(s)\*</sup>
 ## Patch-wise Adversarial Regularization (PAR)
 <img src="./PAR.jpg" width = "800px" />
 
-We introduced the patch-wise adversarial regularization (PAR) that regularizes the model to focus on global concept of the depicted objects in training data by penalizing the model’s predictive power through local patches. To attest the effectiveness of our model, we verify it on a variety of domain adaptation/generalization settings, including perturbed [MNIST](http://yann.lecun.com/exdb/mnist/), perturbed [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html), [PACS](http://www.eecs.qmul.ac.uk/~dl307/project_iccv2017) and a novel large-scale domain generalization dataset ImageNet-Sketch. Please refer to each experiment folder for codes to reproduce the benchmark mentioned in our paper.
+We introduced the patch-wise adversarial regularization (PAR) that regularizes the model to focus on global concept of the depicted objects in training data by penalizing the model’s predictive power through local patches. To attest the effectiveness of our model, we verify it on a variety of domain adaptation/generalization settings, including perturbed [MNIST](http://yann.lecun.com/exdb/mnist/), perturbed [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html), [PACS](http://www.eecs.qmul.ac.uk/~dl307/project_iccv2017) and a novel large-scale domain generalization dataset ImageNet-Sketch. 
+
+### Experiments
+In general, please refer to each experiment folder for detailed codes and instruction to reproduce the benchmark mentioned in the paper. To train PAR, the following arguments are optinal and can be tuned according to the specific situation:
+
+-e, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --epochs, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; how many epochs to run in total?<br>
+-b, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --batch_size, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; batch size during training per GPU<br>
+-m, &nbsp;&nbsp;&nbsp;&nbsp; --lam, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  trade-off weight of the regularization loss<br>
+-adv, &nbsp;&nbsp; --adv_flag, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  adversarially training local features or not<br>
+-se, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--start_epoch, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; the epoch start to adversarial training<br>
+-alr, &nbsp;&nbsp;&nbsp; --adv_learning_rate, &nbsp;&nbsp;&nbsp; learning rate for adversarial learning<br>
+-lr, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --learning_rate, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; initial learning rate<br>
+-o, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --output, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; save model filepath<br>
+-g, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; --gpuid, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; which gpu to use<br>
 
 ## ImageNet-Sketch Dataset
 
