@@ -11,19 +11,10 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import cPickle as pickle
 import glob
-# need to change 
-#data_dir = "../../data"
-#data_dir_cifar10 = os.path.join(data_dir, "cifar-10-batches-py")
-#data_dir_cifar100 = os.path.join(data_dir, "cifar-100-python")
-
-#class_names_cifar10 = np.load(os.path.join(data_dir_cifar10, "batches.meta"))
-#class_names_cifar100 = np.load(os.path.join(data_dir_cifar100, "meta"))
 
 np.random.seed(0)
 
-# radial=[3,  6,  2,  8,  4,  10,  5, 11, 9,  7]
 radial=[i*0.1*14 for i in range(10)]
-# random=[0.61, 0.36, 0.59, 0.25, 0.44, 0.47, 0.77, 0.14, 0.8, 0.48]
 random = [i*0.1 for i in range(10)]
 
 def fft(img):
@@ -82,7 +73,6 @@ def mask_radial(img,l,isGray=True):
     for i in range(rows):
         for j in range(cols):
             mask[i,j]=distance2(i,j,rows,cols,r=14, l=l)
-            # mask[i,j]=distance(i,j,rows,cols,r=20)
     return mask
 
 def mask_random(img,p = 0.5,isGray=True):  
@@ -103,7 +93,6 @@ def change_img_random(image,r,g,b,isGray=True,label=-1):
         else:
             x = np.random.randint(10)
 
-    # _mask=mask_random(image,random[x],isGray)
     _mask = maskRandomKernel[x]
 
     if isGray == True:
@@ -117,21 +106,18 @@ def change_img_random(image,r,g,b,isGray=True,label=-1):
     fftshift_result_b = fftshift_img_b * _mask
     result_b = ifftshift(fftshift_result_b) 
     mb=np.abs(result_b)
-    #mb=mb.astype(int)
     
     _mask=mask_random(image,0.0)
     fftshift_img_g=fftshift(g)
     fftshift_result_g = fftshift_img_g * _mask
     result_g = ifftshift(fftshift_result_g) 
     mg=np.abs(result_g)
-    #mg=mg.astype(int)
 
     _mask=mask_random(image,0.0)
     fftshift_img_r=fftshift(r)
     fftshift_result_r = fftshift_img_r * _mask
     result_r = ifftshift(fftshift_result_r) 
     mr=np.abs(result_r)
-    #mr=mr.astype(int)
 
     img_mix=cv2.merge([mr,mg,mb])
     return img_mix
@@ -140,15 +126,11 @@ def change_img_radial(image,r,g,b,isGray=True,label=-1, corr=0.8):
     if label==-1:
         x=np.random.randint(10)
     else:
-        # label=0-9
         if np.random.random() < corr:
             x=label
         else:
             x = np.random.randint(10)
-        # x=label
-    # x = np.random.randint(10)
-
-    # _mask=mask_radial(image,radial[x],isGray)
+            
     _mask = maskRadioKernel[x]
 
     if isGray == True:
@@ -164,19 +146,16 @@ def change_img_radial(image,r,g,b,isGray=True,label=-1, corr=0.8):
     fftshift_result_b = fftshift_img_b * _mask
     result_b = ifftshift(fftshift_result_b) 
     mb=np.abs(result_b)
-    #mb=mb.astype(int)
 
     fftshift_img_g=fftshift(g)
     fftshift_result_g = fftshift_img_g * _mask
     result_g = ifftshift(fftshift_result_g) 
     mg=np.abs(result_g)
-    #mg=mg.astype(int)
 
     fftshift_img_r=fftshift(r)
     fftshift_result_r = fftshift_img_r * _mask
     result_r = ifftshift(fftshift_result_r) 
     mr=np.abs(result_r)
-    #mr=mr.astype(int)
 
     img_mix=cv2.merge([mr,mg,mb])
     return img_mix, x
@@ -211,7 +190,6 @@ def change_mnist_radial(isGray=True, corr=0.8):
         img_mix, pid =change_img_radial(r,r,r,r,isGray,int(training_data[1][i]),corr=corr)
         _Xtrain[i]=img_mix.reshape(1,28*28)
         idLabel_train.append(pid)
-        # _Xtrain[i] = training_data[0][i]
 
     for i in range(validation_data[0].shape[0]):
         r = validation_data[0][i]
@@ -219,7 +197,6 @@ def change_mnist_radial(isGray=True, corr=0.8):
         img_mix, pid=change_img_radial(r,r,r,r,isGray,int(validation_data[1][i]),corr=corr)
         _Xvalidation[i]=img_mix.reshape(1,28*28)
         idLabel_val.append(pid)
-        # _Xvalidation[i] = validation_data[0][i]
 
     for i in range(test_data[0].shape[0]):
         r = test_data[0][i]
@@ -227,7 +204,6 @@ def change_mnist_radial(isGray=True, corr=0.8):
         img_mix, pid=change_img_radial(r,r,r,r,isGray,-1,corr=corr)
         _Xtest[i]=img_mix.reshape(1,28*28)
         idLabel_test.append(pid)
-        # _Xtest[i] = test_data[0][i]
 
     idLabel_train = np.array(idLabel_train)
     idLabel_val = np.array(idLabel_val)
@@ -241,23 +217,10 @@ def change_mnist_radial(isGray=True, corr=0.8):
     _Xtrain = _Xtrain[indices, :]
     training_label = training_data[1][indices]
 
-    # x = _Xtrain
-    #
-    # y = oneHotRepresentation(y)
-    # Ytest = oneHotRepresentation(Ytest)
-    #
-    # l=int(len(x)*0.7)
-    # xtrain=x[0:l,:]
-    # ytrain=y[0:l,:]
-    # #get validation
-    # xvalidation=x[l:,:]
-    # yvalidation=y[l:,:]
-
-    # return _Xtrain, oneHotRepresentation(idLabel_train),_Xvalidation,oneHotRepresentation(idLabel_val),_Xtest,oneHotRepresentation(idLabel_test)
     return _Xtrain, oneHotRepresentation(training_label),_Xvalidation,oneHotRepresentation(validation_data[1]),_Xtest,oneHotRepresentation(test_data[1])
 
 ####################################################################################
-### MultiDomain Codes
+### MultiDomain Codes 
 ####################################################################################
 
 def addingPattern(r, mask):
@@ -329,16 +292,11 @@ def loadMultiDomainMNISTData(testCase=1):
         img = addMultiDomainPattern(r, training_data[1][i], testCase, randomMask=randomMask, radioMask=radioMask)
         _Xvalidation[i]=img.reshape(1,28*28)
 
-    # from matplotlib import pyplot as plt
 
     for i in range(test_data[0].shape[0]):
         r = test_data[0][i]
         r=r.reshape(28,28)
-        # plt.imshow(r)
-        # plt.show()
         img = addMultiDomainPattern(r, training_data[1][i], testCase, testingFlag=True,randomMask=randomMask, radioMask=radioMask)
-        # plt.imshow(img)
-        # plt.show()
         _Xtest[i]=img.reshape(1,28*28)
 
     indices = np.random.permutation(_Xtrain.shape[0])
