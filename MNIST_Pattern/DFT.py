@@ -76,17 +76,16 @@ def distance2(i,j,w,h,r=14.0,l=0):
         return 0
 
 
-def mask_radial(img,l,isGray=True):  # 产生一个滤波矩阵
+def mask_radial(img,l,isGray=True): 
     rows,cols=img.shape
-    mask = np.zeros((rows,cols)) # 创建全是1的与原图大小相同的矩阵
+    mask = np.zeros((rows,cols)) 
     for i in range(rows):
         for j in range(cols):
             mask[i,j]=distance2(i,j,rows,cols,r=14, l=l)
             # mask[i,j]=distance(i,j,rows,cols,r=20)
-    # 区域大小取决于rate
     return mask
 
-def mask_random(img,p = 0.5,isGray=True):  # 产生一个滤波矩阵
+def mask_random(img,p = 0.5,isGray=True):  
     rows,cols=img.shape
     mask=np.random.binomial(1,p,(rows,cols))
     return mask
@@ -268,15 +267,14 @@ def addingPattern(r, mask):
     mr=np.abs(result_r)
     return mr
 
-def mask_radial_MM(isGray=True):  # 产生一个滤波矩阵
-    mask = np.zeros((28,28)) # 创建全是1的与原图大小相同的矩阵
+def mask_radial_MM(isGray=True):  
+    mask = np.zeros((28,28)) 
     for i in range(28):
         for j in range(28):
             mask[i,j]=distance(i,j,28,28,r=3.5)
-    # 区域大小取决于rate
     return mask
 
-def mask_random_MM(p = 0.5,isGray=True):  # 产生一个滤波矩阵
+def mask_random_MM(p = 0.5,isGray=True):  
     mask=np.random.binomial(1,1-p,(28,28))
     return mask
 
@@ -289,7 +287,7 @@ def addMultiDomainPattern(r, l, testCase, testingFlag=False, randomMask=None, ra
         else:
             return addingPattern(r, radioMask)
     else:
-        # if l < 5:
+        # if l < 5:   # TODO: switch this line with the next line to control whether the experiment is on dependent case or independent case
         if np.random.random() < 0.5:
             k = 1
         else:
@@ -349,22 +347,6 @@ def loadMultiDomainMNISTData(testCase=1):
 
     return _Xtrain, oneHotRepresentation(training_label),_Xvalidation,oneHotRepresentation(validation_data[1]),_Xtest,oneHotRepresentation(test_data[1])
 
-#run: 
-# Xtrain,Ytrain,xvalidation,yvalidation,Xtest,Ytest=change_mnist_radial()
-#
-# r = []
-# for i in range(Xtrain.shape[0]):
-#     r.append(np.abs(np.fft.fftshift(np.fft.fft2(Xtrain[i,:].reshape([28,28]))).reshape([28*28])).astype(np.float32))
-#
-# r = np.array(r)
-# from matplotlib import pyplot as plt
-# plt.imshow(np.dot(r,r.T))
-# plt.show()
-
-#change_cifar100_radial()
-# xtrain,ytrain,xvalidation,yvalidation,Xtest,Ytest=original_cifar10()
-#change_cifar10_random()
-#change_cifar100_random()
 if __name__ == '__main__':
     loadMultiDomainMNISTData(testCase=2)
 
