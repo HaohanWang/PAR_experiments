@@ -206,8 +206,7 @@ class AlexNet(object):
 
             ty = tf.reshape(self.y, [-1, 1, 1, self.NUM_CLASSES])
             my = tf.tile(ty, [1, m, n, 1])
-            self.adv_loss = tf.reduce_min(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
-            # self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
+            self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
             self.adv_acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, -1), tf.argmax(my, -1)), tf.float32))
 
             self.loss -= conf.lam * self.adv_loss
@@ -261,13 +260,13 @@ def train(args):
     num_classes = 1000
 
     tr_data = ImageDataGenerator('../data/ImageNet/trainDataPath.txt',
-                                 dataroot='/media/haohanwang/Info/ImageNet/train/',
+                                 dataroot='/ImageNet/train/',
                                  mode='training',
                                  batch_size=args.batch_size,
                                  num_classes=num_classes,
                                  shuffle=False)
     val_data = ImageDataGenerator('../data/ImageNet/valDataPath.txt',
-                                  dataroot='/media/haohanwang/Info/ImageNet/val/',
+                                  dataroot='/ImageNet/val/',
                                   mode='inference',
                                   batch_size=args.batch_size,
                                   num_classes=num_classes,
@@ -338,8 +337,6 @@ def train(args):
             train_acc_mean = np.mean(train_accuracies)
             train_loss_mean = np.mean(train_losses)
 
-            # print ()
-
             # compute loss over validation data
             if validation:
                 sess.run(validation_init_op)
@@ -368,7 +365,6 @@ def test(testFolderPaths, args):
     x = tf.placeholder(tf.float32, (None, 227, 227, 3))
     y = tf.placeholder(tf.float32, (None, num_class))
 
-    # model = AlexNetHex(x, y, x_re, x_d, args, Hex_flag=True)
     model = AlexNet(x, y, args)
 
     testDataLoader = ImageNetLoader(batchSize=128, sampleFlag=False)
@@ -429,33 +425,5 @@ if __name__ == '__main__':
     if not args.testing:
         train(args)
     else:
-        # trainPath = '/media/haohanwang/Info/ImageNet/train/'
-        # valPath = '/media/haohanwang/Info/ImageNet/val/'
-        # testPaths = ['/media/haohanwang/Info/ImageNet/val/']
-        #
-        # categories = ['glass_blur',
-        #               'brightness',
-        #               'fog',
-        #               'speckle_noise',
-        #               'zoom_blur',
-        #               'jpeg_compression',
-        #               'snow',
-        #               'shot_noise',
-        #               'saturate',
-        #               'impulse_noise',
-        #               'contrast',
-        #               'gaussian_noise',
-        #               'frost',
-        #               'pixelate',
-        #               'motion_blur',
-        #               'elastic_transform',
-        #               'spatter',
-        #               'defocus_blur',
-        #               'gaussian_blur']
-        #
-        # for c in categories:
-        #     for i in range(1, 6):
-        #         testPaths.append('/media/haohanwang/Info/ImageNet/C/' + c + '/' + str(i) + '/')
-        #
-        testPaths = ['/media/haohanwang/Info/ImageNet/sketch/']
+        testPaths = ['/ImageNet/sketch/']
         test(testPaths, args)
