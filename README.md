@@ -15,4 +15,4 @@ If you find this method helpful, please consider cite:
 
 ### Other Resources
 
-You may be also interested in [HaohanWang/HEX_experiments](https://github.com/HaohanWang/HEX_experiments)
+- You may be also interested in [HaohanWang/HEX_experiments](https://github.com/HaohanWang/HEX_experiments)
