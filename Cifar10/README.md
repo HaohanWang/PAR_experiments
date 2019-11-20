@@ -4,7 +4,7 @@ Anonymous Author(s)\*</sup>
 
 ### Requirements
 - Python 3.6
-- [Tensorflow]https://www.tensorflow.org/) tested on version `1.10.0`
+- [Tensorflow](https://www.tensorflow.org/) tested on version `1.10.0`
 
 ### Installation
 
