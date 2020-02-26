@@ -14,6 +14,12 @@ from util import nn_util
 from util import data_util
 from util import test_util
 
+def sample_lognormal(mean, sigma=None, sigma0=1.):
+    '''Samples a log-normal using the reparametrization trick'''
+    e = tf.random_normal(tf.shape(mean), mean=0., stddev=1.)
+    return tf.exp(mean + sigma * sigma0 * e)
+
+
 class ResNet(object):
     def __init__(self, x, y, args):
         self.x = tf.reshape(x, shape=[-1, 32, 32, 3])
@@ -21,11 +27,7 @@ class ResNet(object):
         self.keep_prob = tf.placeholder(tf.float32)
         self.model_path = os.path.join('cachedir/models/', args.output)
         self.learning_rate = tf.placeholder(tf.float32)
-
-        if int(args.input_epoch) == 0:
-            self.load_model_path = os.path.join('cachedir/models/', args.input)
-        else:
-            self.load_model_path = os.path.join('cachedir/models/', args.input, str(args.input_epoch))
+        self.load_model_path = os.path.join('cachedir/models/', args.input, str(args.input_epoch))
 
         n = 5
         reuse = False
@@ -59,13 +61,6 @@ class ResNet(object):
                     layers.append(conv3)
                 assert conv3.get_shape().as_list()[1:] == [8, 8, 64]
 
-            in_channel = layers[-1].get_shape().as_list()[-1]
-            bn_layer = nn_util.batch_normalization_layer(layers[-1], in_channel)
-            relu_layer = tf.nn.relu(bn_layer)
-            # B x 64
-            global_pool = tf.reduce_mean(relu_layer, [1, 2])
-            assert global_pool.get_shape().as_list()[-1:] == [64]
-
             
             with tf.variable_scope('fc', reuse=reuse):
                 in_channel = layers[-1].get_shape().as_list()[-1]
@@ -73,17 +68,27 @@ class ResNet(object):
                 relu_layer = tf.nn.relu(bn_layer)
                 global_pool = tf.reduce_mean(relu_layer, [1, 2])
 
-                assert global_pool.get_shape().as_list()[-1:] == [64]
-                output = nn_util.output_layer(global_pool, 10)
+            with tf.variable_scope('infodrop', reuse=reuse):
+                in_channel_id = layers[-1].get_shape().as_list()[-1]
+                bn_layer_id = nn_util.batch_normalization_layer(layers[-1], in_channel_id)
+                sigmoid_layer_id = tf.sigmoid(bn_layer_id)
+                global_pool_id = tf.reduce_mean(sigmoid_layer_id, [1, 2])
+
+                self.alpha = 0.001 + 0.7 * global_pool_id
+                e = sample_lognormal(mean=tf.zeros_like(global_pool_id), sigma = self.alpha, sigma0 = 1.0)
+                h_fc1_drop = global_pool*e
+                
+                assert h_fc1_drop.get_shape().as_list()[-1:] == [64]
+                output = nn_util.output_layer(h_fc1_drop, 10)
                 layers.append(output)
 
         y_conv = output
 
         self.loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=y_conv))
         self.pred = tf.argmax(y_conv, 1)
-
+        
         regu_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-        self.loss = tf.add_n([self.loss] + regu_losses)
+        self.loss += tf.reduce_mean(tf.reduce_sum(-0.3*tf.log(self.alpha/(0.7 + 0.001)), -1))
 
         self.correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(self.y, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
@@ -93,10 +98,10 @@ class ResNet(object):
     def load_initial_weights(self, session):
         for v in tf.trainable_variables():
             saveName = v.name.replace('/', '_')
-            # print (saveName)
             if saveName.startswith('cnn'):
                 data = np.load(self.load_model_path + '/cnn_' + saveName[4:] + '.npy')
                 session.run(v.assign(data))
+
 
 def generate_train_batch(args, train_data, train_labels, train_batch_size, padding_size, i):
     batch_data = train_data[i*train_batch_size:(i+1)*train_batch_size, :]
@@ -104,13 +109,11 @@ def generate_train_batch(args, train_data, train_labels, train_batch_size, paddi
 
     if args.augmentation:
         batch_data = data_util.random_crop_and_flip(batch_data, padding_size=padding_size)
-
     return batch_data, batch_label
 
 def generate_test_batch(args, test_data, test_labels, test_batch_size, padding_size, i):
     batch_data = test_data[i*test_batch_size:(i+1)*test_batch_size, :]
     batch_label = test_labels[i*test_batch_size:(i+1)*test_batch_size, :]
-
     return batch_data, batch_label
 
 def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
@@ -192,10 +195,10 @@ def train(args, model, Xtrain, Ytrain, Xtest, Ytest):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--output", type=str, default='ResNet', help='Save model filepath')
-    parser.add_argument("-ie", "--input_epoch", type=str, default=199, help='Load model after n epochs')
-    parser.add_argument("-i", "--input", type=str, default='ResNet', help='Load model filepath')
-    parser.add_argument('-e', '--epochs', type=int, default=200, help='How many epochs to run in total?')
+    parser.add_argument("-o", "--output", type=str, default='infodrop', help='Save model filepath')
+    parser.add_argument("-ie", "--input_epoch", type=str, default=399, help='Load model after n epochs')
+    parser.add_argument("-i", "--input", type=str, default='infodrop', help='Load model filepath')
+    parser.add_argument('-e', '--epochs', type=int, default=400, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=128, help='Batch size during training per GPU')
     parser.add_argument('-g', '--gpu_id', type=str, default='0', help='gpuid used for trianing')
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.1, help='learning rate')
@@ -210,6 +213,7 @@ if __name__ == "__main__":
     if args.augmentation:
         pad_width = ((0, 0), (2, 2), (2, 2), (0, 0))
         Xtrain = np.pad(Xtrain, pad_width=pad_width, mode='constant', constant_values=0)
+
 
     num_class = 10
 

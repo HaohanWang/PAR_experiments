@@ -212,7 +212,6 @@ class AlexNet(object):
             y_adv_loss = conv2d(conv1, W_a) + b_a
             ty = tf.reshape(self.y, [-1, 1, 1, self.class_num])
             my = tf.tile(ty, [1, m, n, 1])
-            # self.adv_loss = tf.reduce_min(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
             self.adv_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=my, logits=y_adv_loss))
             self.adv_acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(y_adv_loss, -1), tf.argmax(my, -1)), tf.float32))
 
@@ -431,9 +430,9 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, default='prediction.csv', help='Prediction filepath')
     parser.add_argument('-e', '--epochs', type=int, default=100, help='How many epochs to run in total?')
     parser.add_argument('-b', '--batch_size', type=int, default=64,
-                        help='Batch size during training per GPU')  # todo: default was 128
+                        help='Batch size during training per GPU')
     parser.add_argument('-save', '--save', type=str, default='ckpts/', help='save acc npy path?')
-    parser.add_argument('-cat', '--cat', type=str, default='photo', help='save acc npy path?')
+    parser.add_argument('-cat', '--cat', type=str, default='photo', help='which target domain to test?')
     parser.add_argument('-adv', '--adv_flag', type=int, default=0, help='adversarially training local features')
     parser.add_argument('-m', '--lam', type=float, default=1.0, help='weights of regularization')
 
